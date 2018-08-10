@@ -1,0 +1,7 @@
+{
+    "C_Cpp.errorSquiggles": "Enabled",
+    "files.associations": {
+        "spp_include.h": "c",
+        "spp_interface.h": "c"
+    }
+}
