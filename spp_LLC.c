@@ -39,8 +39,7 @@ uint8_t InitLLCInstance()
 #define PNALUtilConvertUint32ToPointer( nValue ) \
          ((void*)(((uint8_t*)0) + (nValue)))
 
-static void static_PSHDLCConnectAvoidCounterSpin(
-         tLLCInstance* pLLCInstance )
+static void static_AvoidCounterSpin(tLLCInstance* pLLCInstance)
 {
    pLLCInstance->nReadNextToReceivedFrameId += 0x20;   //加32？    0x 0010 0000
    pLLCInstance->nReadLastAcknowledgedFrameId += 0x20;
@@ -49,40 +48,43 @@ static void static_PSHDLCConnectAvoidCounterSpin(
    pLLCInstance->nWriteNextWindowFrameId += 0x20;
 }
 
-static uint32_t static_PSHDLCWriteRebuild32BitIdentifier(
-         tLLCInstance* pLLCInstance,
-         uint8_t n3bitValue )
+/**
+ * @function    把一个LLC帧的写对象加入到一个LLC实体的写链表中
+ * @parameter1  LLC实体对象
+ * @parameter2  一个LLC帧写对象
+ * @parameter3  插入选项，如果为真就把写对象加入到链表头，否则加入到链表尾
+ * @return      错误码 
+*/
+static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWriteContext* pLLCWriteContext,bool bIsAddToHead)
 {
-   uint32_t n32bitValue = pLLCInstance->nWriteLastAckSentFrameId;
+    tLLCWriteContext** pListHead = NULL;
+    tLLCWriteContext* pWriteContext = pLLCWriteContext;
+    tLLCWriteContext* pTempNode = NULL;
 
-   CDebugAssert(pLLCInstance != NULL);
-   CDebugAssert(pLLCInstance->nWriteNextToSendFrameId >= pLLCInstance->nWriteNextWindowFrameId);
-   CDebugAssert(pLLCInstance->nWriteNextWindowFrameId > n32bitValue);
+    pListHead = &(pLLCInstance->pLLCFrameWriteListHead);
 
-   if( n3bitValue > (n32bitValue & 0x07))
-   {
-      n32bitValue = (n32bitValue & 0xFFFFFFF8) | n3bitValue;
-   }
-   else
-   {
-      n32bitValue = ((n32bitValue + 8) & 0xFFFFFFF8) | n3bitValue;
-   }
+    //加入到链表末尾
+    if(!bIsAddToHead)
+    {
+        if ( *pListHead == NULL)
+        {
+            *pListHead = pWriteContext;
+            return;
+        }
 
-   return n32bitValue;
-}
-static  uint32_t static_PSHDLCWriteModulo(uint32_t nValue, uint32_t nModulo )
-{
-   CDebugAssert((nModulo >= 1) && (nModulo <= 4));
-   switch(nModulo)
-   {
-   case 1:
-      return 0;
-   case 2:
-      return nValue & 1;
-   case 3:
-      return nValue - ((nValue / 3) * 3);
-   }
-   return nValue & 3;
+        while((*pListHead)->pNext != NULL)
+        {
+            pListHead = &(*pListHead)->pNext;
+        }
+        (*pListHead)->pNext = pWriteContext;
+    }//加入到链表头
+    else
+    {
+        pTempNode = *pListHead;
+        *pListHead = pWriteContext;
+        (*pListHead)->pNext = pTempNode;
+    }
+    return 1;
 }
 //这个函数的作用是为接收到的控制帧写响应帧，并把发送动作放到 DFC 链表中
 bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFrame/*,uint32_t nSHDLCFrameReceptionCounter*/)
@@ -131,7 +133,7 @@ bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFram
 //    }
 
 //       // nNextToReceive 对方期望接收到的下一帧 ID 
-//    nNextToReceive = static_PSHDLCWriteRebuild32BitIdentifier(pLLCInstance, nCtrlFrame & 0x07);
+//    nNextToReceive = static_ConvertTo32BitIdentifier(pLLCInstance, nCtrlFrame & 0x07);
 
 //       //需要弄懂 nWriteNextWindowFrameId 这个值的计算与含义
 //    if((nNextToReceive <= pLLCInstance->nWriteNextWindowFrameId) &&
@@ -157,7 +159,7 @@ bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFram
 //          for(nPosition = nNextToReceive; nPosition < pLLCInstance->nWriteNextWindowFrameId; nPosition++)
 //          {
 //             pLLCInstance->nWriteByteErrorCount += pLLCInstance->aWriteFrameArray[
-//                static_PSHDLCWriteModulo(nPosition, pLLCInstance->nWindowSize)].nLength;
+//                static_Modulo(nPosition, pLLCInstance->nWindowSize)].nLength;
 //          }
 //       }
 
@@ -167,10 +169,10 @@ bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFram
 //          nPosition++)
 //       {
 //          CDebugAssert(pLLCInstance->aWriteFrameArray[
-//                static_PSHDLCWriteModulo(nPosition, pLLCInstance->nWindowSize)].nLength >= 2);
+//                static_Modulo(nPosition, pLLCInstance->nWindowSize)].nLength >= 2);
 
 //          if(((pLLCInstance->aWriteFrameArray[
-//                static_PSHDLCWriteModulo(nPosition, pLLCInstance->nWindowSize)].aData[1]) & 0x80) != 0)
+//                static_Modulo(nPosition, pLLCInstance->nWindowSize)].aData[1]) & 0x80) != 0)
 //          {
 //             bAlreadyCalled = true;
 //       //pLLCInstance->pWriteHandler = static_PHCIFrameSHDLCWriteAcknowledged
@@ -418,7 +420,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
 
 
         /* Compute the number of non-acknoledged frames */
-        //nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
+        nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
         
         /* If this number is greater than or equals to the window size */
         if( nNonAcknowledgedFrameNumber >= pLLCInstance->nWindowSize )
@@ -438,7 +440,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         pLLCInstance->nReadNextToReceivedFrameId++;
         if(pLLCInstance->nReadNextToReceivedFrameId == 0)
         {
-            static_PSHDLCConnectAvoidCounterSpin(pLLCInstance);
+            static_AvoidCounterSpin(pLLCInstance);
         }
 
 
@@ -458,23 +460,12 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             printf("\n is waiting last fragment ... \n");
             pLLCInstance->bIsWaitingLastFragment = true;
             //组装一个完整的message，需要一直取 LLC 帧
-            
-        //    pLLCInstance->nRRPiggyBackHeader = pLLCInstance->aReceptionBuffer[1];
         }
         else
         {
             printf("\nthis is the last fragment or this is a single message\n");
             pLLCInstance->bIsWaitingLastFragment = false;
             //把一帧 LLC 帧解析成message向上传递
-        //    if((pLLCInstance->aReceptionBuffer[1] & 0x7F) != pLLCInstance->nRRPiggyBackHeader)
-        //    {
-        //       if((pLLCInstance->aReceptionBuffer[2] & 0xC0) == 0x40)
-        //       {
-        //          /* If the HCI frame is an event, force the transmition of the RR */
-        //          bForceTransmit = true;
-        //       }
-        //    }
-        //    pLLCInstance->nRRPiggyBackHeader = 0;
         }
         for(int index = 2; index < nThisLLCFrameLength; index++)
         {
@@ -482,20 +473,11 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             g_sSPPInstance->nMessageLength += 1;
         }
         
-        // pLLCInstance->nReadPayload += nLength;
-
-        // if(static_PSHDLCReadWriteInBuffer(
-        //    pLLCInstance,
-        //    &pLLCInstance->aReceptionBuffer[1],
-        //    nLength,
-        //    nSHDLCFrameReceptionCounter) != false)
-        // {
         //    /* The buffer was empty, send the data ready event */
         //    PNALDFCPost1(
         //       pBindingContext, P_DFC_TYPE_SHDLC,
         //       pLLCInstance->pReadHandler,
         //       pLLCInstance->pReadHandlerParameter);
-        // }
     }  
     else
     {
@@ -508,10 +490,66 @@ function_return:
    return;
 }
 
+uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority)
+{
+    uint32_t nWriteByteCount = 0;
+    uint8_t nSingleLLCFrameLength = 0;
+    uint32_t nRemainingPayload = nMessageLength;
+    uint8_t* pSingleLLCFrame = NULL;
+    uint8_t* pSendMessageAddress = pSendMessage;
+    tLLCWriteContext* pLLCWriteContext = NULL;
+    tLLCInstance* pLLCInstance = NULL;
+
+    while(nRemainingPayload > 0)
+    {
+        if(nRemainingPayload > LLC_FRAME_MAX_LENGTH)
+        {
+            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH + 3));
+            *pSingleLLCFrame = LLC_FRAME_MAX_LENGTH + 2;
+            //Package head
+            *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
+            *(pSingleLLCFrame + 2) |= 0x00;         //不是最后一片，分片的 CB 位为0
+            *(pSingleLLCFrame + 2) |= (g_nVersion & VERSION_FIELD_MASK);   //版本信息
+            *(pSingleLLCFrame + 2) |= (nMessagePriority & PRIORITY_MASK);  //优先级信息            
+        }
+        else
+        {
+            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nRemainingPayload + 3));
+            *pSingleLLCFrame = nRemainingPayload + 2;
+            //Package head
+            *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
+            *(pSingleLLCFrame + 2) |= 0x80;         //是最后一片，分片的 CB 位为1
+            *(pSingleLLCFrame + 2) |= (g_nVersion & VERSION_FIELD_MASK);   //版本信息
+            *(pSingleLLCFrame + 2) |= (nMessagePriority & PRIORITY_MASK);  //优先级信息
+        }
+
+        *(pSingleLLCFrame + 1) = 0x80;  //信息帧，N(S)和N(R)字段在发送的时候填充
+        for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame; nSingleLLCFrameLength++)
+        {
+            *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *pSendMessageAddress++;
+        }
+        pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
+        pLLCWriteContext->pLLCFrameBuffer = pSingleLLCFrame;
+        pLLCWriteContext->nLLCFrameLength = nSingleLLCFrameLength;
+        pLLCWriteContext->pCallbackFunction = NULL;
+        pLLCWriteContext->pCallbackParameter = NULL;
+        pLLCWriteContext->pSreamCallbackFunction = NULL;
+        pLLCWriteContext->pStreamCallbackParameter = NULL;
+        pLLCWriteContext->pNext = NULL;
+
+        nWriteByteCount += nSingleLLCFrameLength;
+        nRemainingPayload -= nSingleLLCFrameLength;
+
+        pLLCInstance = GetCorrespondingLLCInstance(pSingleLLCFrame);
+        static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,0);
+    }
+    return nWriteByteCount;
+}
+
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength)
 {
     uint8_t nPriority = 0;
-    nPriority = *(pLLCFrameWithLength+2) & 0x7f;
+    nPriority = *(pLLCFrameWithLength+2) & PRIORITY_MASK;
     CDebugAssert(nPriority < PRIORITY);
     return g_aLLCInstance[nPriority];
 }

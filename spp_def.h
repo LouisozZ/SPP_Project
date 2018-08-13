@@ -5,6 +5,9 @@
 #define USER_PRINTF
 #define DEBUG_PEINTF
 
+//=====================================================================================
+//                                变量类型定义
+//=====================================================================================
 #ifndef __bool_defined
     enum BOOL{false,true};
     typedef enum BOOL bool;
@@ -27,11 +30,21 @@ typedef unsigned long int       uint64_t;
 //__extension__  
 typedef unsigned long long int  uint64_t;  
 #endif 
+//******************************  变量类型定义  ****************************************
 
-#define PRIORITY    4
 
+//=====================================================================================
+//                                  常量定义
+//=====================================================================================
+//优先级嵌套层次与计算掩码
+#define PRIORITY_MASK   0x07
+
+#define PRIORITY        4
+
+//滑动窗口
 #define MAX_WINDOW_SIZE      4
 
+//读状态机
 #define MAC_FRAME_READ_STATUS_IDLE               0
 #define MAC_FRAME_READ_STATUS_WAITING_HEADER     1
 #define MAC_FRAME_READ_STATUS_WAITING_BYTE       2
@@ -40,11 +53,18 @@ typedef unsigned long long int  uint64_t;
 #define HEADER_SOF      0x7e
 #define TRAILER_EOF     0x7f
 
+//帧长度
 #define LLC_FRAME_MAX_LENGTH 30
 #define MAC_FRAME_MAX_LENGTH LLC_FRAME_MAX_LENGTH+4+(LLC_FRAME_MAX_LENGTH/5)
-
-#define READ_BUFFER_SIZE    256
 #define SINGLE_MESSAGE_MAX_LENGTH 256
 
+//缓冲区大小
+#define READ_BUFFER_SIZE    256
+
+//版本定义
+#define VERSION_FIELD_MASK  0x78
+
+#define VERSION_1_0         0x08
+//******************************    常量定义    ****************************************
 
 #endif

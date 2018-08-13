@@ -20,6 +20,40 @@ uint8_t InitMACInstance()
     return 1;
 }
 
+static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8_t n3bitValue )
+{
+   uint32_t n32bitValue = pLLCInstance->nWriteLastAckSentFrameId;
+
+   CDebugAssert(pLLCInstance != NULL);
+   CDebugAssert(pLLCInstance->nWriteNextToSendFrameId >= pLLCInstance->nWriteNextWindowFrameId);
+   CDebugAssert(pLLCInstance->nWriteNextWindowFrameId > n32bitValue);
+
+   if( n3bitValue > (n32bitValue & 0x07))
+   {
+      n32bitValue = (n32bitValue & 0xFFFFFFF8) | n3bitValue;
+   }
+   else
+   {
+      n32bitValue = ((n32bitValue + 8) & 0xFFFFFFF8) | n3bitValue;
+   }
+
+   return n32bitValue;
+}
+static  uint32_t static_Modulo(uint32_t nValue, uint32_t nModulo )
+{
+   CDebugAssert((nModulo >= 1) && (nModulo <= 4));
+   switch(nModulo)
+   {
+   case 1:
+      return 0;
+   case 2:
+      return nValue & 1;
+   case 3:
+      return nValue - ((nValue / 3) * 3);
+   }
+   return nValue & 3;
+}
+
 bool CheckReadBufferFree(tLLCInstance* pLLCInstance)
 {
     if(pLLCInstance->nLLCReadReadPosition <= pLLCInstance->nLLCReadWritePosition)
@@ -217,6 +251,7 @@ tLLCInstance* MACFrameRead()
     //控制帧
     if(*pDataRemovedZero == 2)
     {
+        //CRC not right
         //if((*(pDataRemovedZero+*pDataRemovedZero+1)) != (*(pDataRemovedZero+*pDataRemovedZero)))
         // {
         //     MACFrameRead();
@@ -323,24 +358,42 @@ pDataRemovedZero : ",nByteCount,*pDataRemovedZero);
 bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
 {
     uint8_t nN_R_Value;
+    uint32_t nWriteLastACKId = pLLCInstance->nWriteLastAckSentFrameId;
+    uint32_t nWriteNextWindowId = pLLCInstance->nWriteNextWindowFrameId;
+    uint32_t nReceivedId = 0;
     nN_R_Value = (nCtrlFrame & 0x07);
-    //RNR帧
-    if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_RNR)
+    nReceivedId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
+    
+    if(!((nReceivedId > nWriteLastACKId) && (nReceivedId <= nWriteNextWindowId)))
     {
-        pLLCInstance->bIsWriteOtherSideReady = false;
-        printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nN_R_Value);
-        return true;
-    }//RR帧
-    else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_ACK)
+        //如果收到对方发来的期望接收的下一帧ID不在对方已经确认收到的最大ID和我即将发送的ID之间，
+        //则表示这个ID越界了，不对这个控制帧做响应，并且记录这种情况连续出现的次数，如果连续出现多次，
+        //则认为协议栈的ID管理已经崩溃，无法再保证消息的可靠传输，保持各个缓冲区的数据不变，重置序号，
+        //发送端把滑动窗口中的帧全重发。（接收端做重复对比？）
+        return false;
+    }
+    
+    //RR帧
+    if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_ACK)
     {
-        //更新LastACK
+        pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
         printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%02x\n",nN_R_Value);
         return true;
     }//REJ帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_REJ)
     {
-        //更新NextWindowToSend
+        //更新LastACK
+        pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
+        pLLCInstance->nWriteNextWindowFrameId = nReceivedId;
         printf("\n-------------->REJ : update NextWindowToSend\t\tN(R) : 0x%02x\n",nN_R_Value);
+        return true;
+    }//RNR帧
+    else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_RNR)
+    {
+        //更新NextWindowToSend
+        pLLCInstance->bIsWriteOtherSideReady = false;
+        pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
+        printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nN_R_Value);
         return true;
     }
     return false;
