@@ -85,7 +85,7 @@ static  uint32_t static_PSHDLCWriteModulo(uint32_t nValue, uint32_t nModulo )
    return nValue & 3;
 }
 //这个函数的作用是为接收到的控制帧写响应帧，并把发送动作放到 DFC 链表中
-static bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFrame/*,uint32_t nSHDLCFrameReceptionCounter*/)
+bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFrame/*,uint32_t nSHDLCFrameReceptionCounter*/)
 {
     return true;
 }
@@ -327,7 +327,7 @@ static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWi
     pBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*nThisLLCFrameLength);
     pBuffer_return = pBuffer;
 
-    printf("\nstatic_ReadALLCFrameFromeReadBuffer -> pLLCInstance : 0x%08x\n",pLLCInstance);
+    //printf("\nstatic_ReadALLCFrameFromeReadBuffer -> pLLCInstance : 0x%08x\n",pLLCInstance);
 
     for(int index = 0; index < nThisLLCFrameLength; index++)
     {
@@ -367,7 +367,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     //在等待分片，组织成完整一帧，可以写入
     if((g_sSPPInstance->nMessageLength == 0) || (pLLCInstance->bIsWaitingLastFragment == true))
     {
-        printf("\nLLCReadFrame -> pLLCInstance : 0x%08x\n",pLLCInstance);
+        //printf("\nLLCReadFrame -> pLLCInstance : 0x%08x\n",pLLCInstance);
         pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength);
         nCtrlHeader = *pBuffer;
 

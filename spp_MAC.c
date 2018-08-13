@@ -189,6 +189,13 @@ tLLCInstance* MACFrameRead()
     //把执行了插 0 操作的 LLC 帧复原，然后根据优先级字段选择合适的处理实体。
     pDataRemovedZero = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nByteCount - 2));
     nCRC = static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2));
+    for(int index = 0; index < *pDataRemovedZero; index++)
+    {
+        g_sMACInstance->nMACReadCRC ^= *(pDataRemovedZero+index+1);
+    }
+    nCRC = *(pDataRemovedZero+*pDataRemovedZero+1);
+    // if(nCRC != g_sMACInstance->nMACReadCRC)
+    //     MACFrameRead();
 
 #ifndef DEBUG_PEINTF
     printf("\ng_sMACInstance->aMACReadBuffer : ");
@@ -201,32 +208,55 @@ tLLCInstance* MACFrameRead()
         printf("0x%02x ",*(pDataRemovedZero + index));
     printf("\n");
 #endif
+    nCtrlHeader = *(pDataRemovedZero + 1);
 
+    g_sMACInstance->nMACReadFrameRemaining = nReadBufferCount;
+    g_sMACInstance->nMACReadStatu = nStatus;
+    g_sMACInstance->nMACReadPosition = nReadPosition;
 //=======================对帧进行判断，如果是控制帧，立马处理，如果是信息帧，丢到读缓冲   ====================
     //控制帧
-    if(*pDataRemovedZero == 1)
+    if(*pDataRemovedZero == 2)
     {
         //if((*(pDataRemovedZero+*pDataRemovedZero+1)) != (*(pDataRemovedZero+*pDataRemovedZero)))
+        // {
         //     MACFrameRead();
+        //     return NULL;
+        // }
+        //RR RNR REJ RSET
         printf("\nctrl frame!\n");
+        if(nCtrlHeader != LLC_FRAME_RST)//不是RSET帧
+        {
+            pLLCInstance = GetCorrespondingLLCInstance(pDataRemovedZero);
+            g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
+            CDebugAssert(pLLCInstance != NULL);
+            if(!CtrlFrameAcknowledge(nCtrlHeader,pLLCInstance))
+            {
+                printf("\nAcknowledge ctrl frame false!\n");
+                return NULL;
+            }
+            return pLLCInstance;
+        }
+        else
+        {
+            //RSET(*(pDataRemovedZero + 1));    *(pDataRemovedZero + 1) : window size
+            printf("\n-------------->REST : window size : %d\n",*(pDataRemovedZero + 2));
+            //return NULL;
+        }        
         //响应
         return NULL;
-    }//可能是信息帧，可能是RST帧
+    }//UA帧
+    else if(*pDataRemovedZero == 1)
+    {
+        printf("\n-------------->UA\n");
+    }    
     else
     {
         //信息帧
-        pLLCInstance = GetCorrespondingLLCInstance(pDataRemovedZero);
-        CDebugAssert(pLLCInstance != NULL);
-        for(int index = 0; index < *pDataRemovedZero; index++)
-        {
-            g_sMACInstance->nMACReadCRC ^= *(pDataRemovedZero+index+1);
-        }
-        nCRC = *(pDataRemovedZero+*pDataRemovedZero+1);
-        // if(nCRC != g_sMACInstance->nMACReadCRC)
-        //     MACFrameRead();
-        nCtrlHeader = *(pDataRemovedZero + 1);
         if((nCtrlHeader & 0xc0) == 0x80)
         {
+            pLLCInstance = GetCorrespondingLLCInstance(pDataRemovedZero);
+            g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
+            CDebugAssert(pLLCInstance != NULL);
 #ifndef DEBUG_PEINTF
             printf("\n******1*******\npLLCInstance->nLLCReadReadPosition : %d",pLLCInstance->nLLCReadReadPosition);
             printf("\npLLCInstance->nLLCReadWritePosition : %d\n******1*******\n",pLLCInstance->nLLCReadWritePosition);
@@ -262,11 +292,6 @@ pDataRemovedZero : ",nByteCount,*pDataRemovedZero);
         }
     }
 //=====================================================================================================
-    
-    g_sMACInstance->nMACReadFrameRemaining = nReadBufferCount;
-    g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
-    g_sMACInstance->nMACReadStatu = nStatus;
-    g_sMACInstance->nMACReadPosition = nReadPosition;
 
     if(g_sMACInstance->pMACReadCompletedCallback != NULL)
     {
@@ -291,8 +316,34 @@ pDataRemovedZero : ",nByteCount,*pDataRemovedZero);
             //   nSHDLCFrameReceptionCounterToCall);
         }
     }
-    printf("\nMACFrameRead -> pLLCInstance : 0x%08x\n",pLLCInstance);
+    //printf("\nMACFrameRead -> pLLCInstance : 0x%08x\n",pLLCInstance);
     return pLLCInstance;
+}
+
+bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
+{
+    uint8_t nN_R_Value;
+    nN_R_Value = (nCtrlFrame & 0x07);
+    //RNR帧
+    if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_RNR)
+    {
+        pLLCInstance->bIsWriteOtherSideReady = false;
+        printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nN_R_Value);
+        return true;
+    }//RR帧
+    else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_ACK)
+    {
+        //更新LastACK
+        printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%02x\n",nN_R_Value);
+        return true;
+    }//REJ帧
+    else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_REJ)
+    {
+        //更新NextWindowToSend
+        printf("\n-------------->REJ : update NextWindowToSend\t\tN(R) : 0x%02x\n",nN_R_Value);
+        return true;
+    }
+    return false;
 }
 
 uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferRemovedZero,uint8_t nLengthInsteredZero)
