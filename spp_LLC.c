@@ -20,8 +20,7 @@ uint8_t InitLLCInstance()
         g_aLLCInstance[index]->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*SINGLE_MESSAGE_MAX_LENGTH);
         g_aLLCInstance[index]->nMessageLength = 20;
         g_aLLCInstance[index]->nWritePosition = 0;
-        g_aLLCInstance[index]->bIsWriteBufferFull = false;
-        g_aLLCInstance[index]->bIsWriteFramePending = false;
+        g_aLLCInstance[index]->bIsWriteWindowsFull = false;
         g_aLLCInstance[index]->bIsWriteOtherSideReady = false;    
         g_aLLCInstance[index]->bIsRRFrameAlreadySent = false;
         g_aLLCInstance[index]->nNextCtrlFrameToSend = 0;
@@ -33,13 +32,18 @@ uint8_t InitLLCInstance()
 
         //g_aLLCInstance[index]->sLLCFrameNextToSend.aLLCFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*LLC_FRAME_MAX_LENGTH);
         g_aLLCInstance[index]->sLLCFrameNextToSend.nLLCFrameLength = 0;
+
+        for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
+        {
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum] = (tMACWriteContext*)CMALLOC(sizeof(tMACWriteContext));
+        }
     }
     return 1;
 }
 #define PNALUtilConvertUint32ToPointer( nValue ) \
          ((void*)(((uint8_t*)0) + (nValue)))
 
-static void static_AvoidCounterSpin(tLLCInstance* pLLCInstance)
+void static_AvoidCounterSpin(tLLCInstance* pLLCInstance)
 {
    pLLCInstance->nReadNextToReceivedFrameId += 0x20;   //加32？    0x 0010 0000
    pLLCInstance->nReadLastAcknowledgedFrameId += 0x20;
@@ -69,7 +73,7 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
         if ( *pListHead == NULL)
         {
             *pListHead = pWriteContext;
-            return;
+            return 1;
         }
 
         while((*pListHead)->pNext != NULL)
@@ -84,16 +88,47 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
         *pListHead = pWriteContext;
         (*pListHead)->pNext = pTempNode;
     }
-#ifdef DEBUG_PEINTF
-    pListHead = &(pLLCInstance->pLLCFrameWriteListHead);
-    printf("\npLLCFrameWriteListHead : \n");
-    while((*pListHead)->pNext != NULL)
+
+    return 1;
+}
+
+/**
+ * @function    把一个LLC帧的写对象加入到一个LLC实体的写完成链表中
+ * @parameter1  LLC实体对象
+ * @parameter2  一个LLC帧写对象
+ * @parameter3  插入选项，如果为真就把写对象加入到链表头，否则加入到链表尾
+ * @return      错误码 
+*/
+uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWriteContext* pMACWriteContext,bool bIsAddToHead)
+{
+    tLLCWriteContext** pListHead = NULL;
+    tLLCWriteContext* pWriteContext = pMACWriteContext;
+    tLLCWriteContext* pTempNode = NULL;
+
+    pListHead = &(pLLCInstance->pLLCFrameWriteCompletedListHead);
+
+    //加入到链表末尾
+    if(!bIsAddToHead)
     {
-        printf("0x%08x---->",*pListHead);
-        pListHead = &(*pListHead)->pNext;
+        if ( *pListHead == NULL)
+        {
+            *pListHead = pWriteContext;
+            return 1;
+        }
+
+        while((*pListHead)->pNext != NULL)
+        {
+            pListHead = &(*pListHead)->pNext;
+        }
+        (*pListHead)->pNext = pWriteContext;
+    }//加入到链表头
+    else
+    {
+        pTempNode = *pListHead;
+        *pListHead = pWriteContext;
+        (*pListHead)->pNext = pTempNode;
     }
-    printf("0x%08x\n",*pListHead);
-#endif
+
     return 1;
 }
 //这个函数的作用是为接收到的控制帧写响应帧，并把发送动作放到 DFC 链表中
@@ -204,9 +239,9 @@ bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFram
 //          //PNALMultiTimerCancel( pBindingContext, TIMER_T2_SHDLC_RESEND );
 
 //          /* Informs the caller if the buffer was full */
-//          if( pLLCInstance->bIsWriteBufferFull )
+//          if( pLLCInstance->bIsWriteWindowsFull )
 //          {
-//             pLLCInstance->bIsWriteBufferFull = false;
+//             pLLCInstance->bIsWriteWindowsFull = false;
 
 //             if(bAlreadyCalled == false)
 //             {
@@ -400,6 +435,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
          * to the the write state machine
         */
         //根据帧头 nCtrlHeader 来写响应
+        //CtrlFrameAcknowledge(nCtrlHeader,pLLCInstance)
         if (static_WriteReceptionCtrlFrame(pLLCInstance, nCtrlHeader) != true)
         {
             //PNALDebugWarning("No more processing of this frame...");
@@ -500,7 +536,7 @@ function_return:
    return;
 }
 
-uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority)
+uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority)
 {
     uint32_t nWriteByteCount = 0;
     uint8_t nSingleLLCFrameLength = 0;
@@ -514,7 +550,8 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
     {
         if(nRemainingPayload > LLC_FRAME_MAX_LENGTH)
         {
-            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH + 3));
+            //+4 LEN LLCHEADER PACKAGEHEADER 预留一个 CRC 
+            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH + 4));
             *pSingleLLCFrame = (uint8_t)(LLC_FRAME_MAX_LENGTH + 2);
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
@@ -524,7 +561,7 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
         }
         else
         {
-            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nRemainingPayload + 3));
+            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nRemainingPayload + 4));
             *pSingleLLCFrame = (uint8_t)(nRemainingPayload + 2);
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
@@ -539,21 +576,18 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
             *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *pSendMessageAddress++;
         }
         pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
-#ifdef DEBUG_PEINTF
-        printf("\nthe *pSingleLLCFrame is : 0x%02x\n",*pSingleLLCFrame);
-        printf("\nthis new writecontext is : 0x%08x\n",pLLCWriteContext);
-#endif
-        pLLCWriteContext->pLLCFrameBuffer = pSingleLLCFrame;
-        pLLCWriteContext->nLLCFrameLength = nSingleLLCFrameLength;
-        pLLCWriteContext->pCallbackFunction = (LLCFrameWriteCompleted*)CMALLOC(sizeof(LLCFrameWriteCompleted));
+
+        pLLCWriteContext->pFrameBuffer = pSingleLLCFrame;
+        pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;
+        //pLLCWriteContext->pCallbackFunction = (LLCFrameWriteCompleted*)CMALLOC(sizeof(LLCFrameWriteCompleted));
         pLLCWriteContext->pCallbackFunction = NULL;
-        pLLCWriteContext->pCallbackFunction = (void*)CMALLOC(sizeof(void));        
+        pLLCWriteContext->pCallbackParameter = (void*)CMALLOC(sizeof(void));        
         pLLCWriteContext->pCallbackParameter = NULL;
-        pLLCWriteContext->pCallbackFunction = (LLCFrameWriteGetData*)CMALLOC(sizeof(LLCFrameWriteGetData));
+        //pLLCWriteContext->pSreamCallbackFunction = (LLCFrameWriteGetData*)CMALLOC(sizeof(LLCFrameWriteGetData));
         pLLCWriteContext->pSreamCallbackFunction = NULL;
-        pLLCWriteContext->pCallbackFunction = (void*)CMALLOC(sizeof(void));        
+        pLLCWriteContext->pStreamCallbackParameter = (void*)CMALLOC(sizeof(void));        
         pLLCWriteContext->pStreamCallbackParameter = NULL;
-        pLLCWriteContext->pCallbackFunction = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
+        //pLLCWriteContext->pNext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
         pLLCWriteContext->pNext = NULL;
 
         nWriteByteCount += nSingleLLCFrameLength;

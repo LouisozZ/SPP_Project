@@ -22,6 +22,7 @@ typedef struct tMACInstance{
     uint8_t aMACWriteFrameBuffer[MAC_FRAME_MAX_LENGTH];
     uint8_t nMACWritePosition;
     uint8_t nMACWriteLength;
+    bool bIsWriteFramePending;
 
     /*
     读回调函数定义
@@ -34,6 +35,7 @@ uint8_t InitMACInstance();
 uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferRemovedZero,uint8_t nLengthInsteredZero);
 uint8_t static_InsertZero(uint8_t* aMACReadBuffer,uint8_t* pNewBuffer,uint8_t nOldLength);
 bool CtrlFrameAcknowledge(uint8_t nCtrlFrame,tLLCInstance *pLLCInstance);
+uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame);
 
 
 #endif

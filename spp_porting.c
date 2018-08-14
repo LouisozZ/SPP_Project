@@ -41,3 +41,9 @@ void* CMALLOC(uint32_t length)
 {
     return (void*)malloc(length);
 }
+
+uint8_t CFREE(void* pFreeAddress)
+{
+    free(pFreeAddress);
+    return 1;
+}

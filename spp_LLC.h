@@ -53,8 +53,8 @@ typedef void LLCFrameReadData();
 
 typedef struct tLLCWriteContext
 {
-   uint8_t*                        pLLCFrameBuffer;
-   uint32_t                        nLLCFrameLength;
+   uint8_t*                        pFrameBuffer;
+   uint32_t                        nFrameLength;
 
    LLCFrameWriteCompleted*         pCallbackFunction;
    void*                           pCallbackParameter;
@@ -88,16 +88,17 @@ typedef struct tLLCInstance
     uint8_t *pMessageData;
     uint32_t nMessageLength;
     uint32_t nWritePosition;
-    bool bIsWriteBufferFull;
-    bool bIsWriteFramePending;
+    bool bIsWriteWindowsFull;
     bool bIsWriteOtherSideReady;    
     bool bIsRRFrameAlreadySent;
     uint8_t nNextCtrlFrameToSend;
     LLCWriteAcknowledged* pWriteHandler;
     void* pWriteHandlerParameter;
 
+    tMACWriteContext* aSlideWindow[MAX_WINDOW_SIZE];
+
     tLLCWriteContext* pLLCFrameWriteListHead;
-    tLLCWriteContext* pLLCFrameWriteCompletedListHead;
+    tMACWriteContext* pLLCFrameWriteCompletedListHead;
 
     struct tLLCFrameNextToSend{
         uint8_t aLLCFrameData[LLC_FRAME_MAX_LENGTH];
@@ -108,7 +109,9 @@ typedef struct tLLCInstance
 uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI);
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength);
 bool AnalysisReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFrame);
-uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority);
+uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority);
+uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWriteContext* pMACWriteContext,bool bIsAddToHead);
 uint8_t InitLLCInstance();
+void static_AvoidCounterSpin(tLLCInstance* pLLCInstance);
 
 #endif

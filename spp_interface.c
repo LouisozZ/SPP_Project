@@ -51,7 +51,7 @@ int SendMessage(void* pSendMessage)
     nMessageLength = 27;
     nMessagePriority = 0;
 
-    nSentBytes = LLCSendMessage((uint8_t*)pSendMessage,nMessageLength,nMessagePriority);
+    nSentBytes = LLCFrameWrite((uint8_t*)pSendMessage,nMessageLength,nMessagePriority);
     if(nSentBytes == nMessageLength)
         return 1;
     else return 0;

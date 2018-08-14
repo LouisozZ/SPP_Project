@@ -11,5 +11,6 @@
 */
 uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength);
 void* CMALLOC(uint32_t length);
+uint8_t CFREE(void* pFreeAddress);
 
 #endif

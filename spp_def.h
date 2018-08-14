@@ -30,6 +30,8 @@ typedef unsigned long int       uint64_t;
 //__extension__  
 typedef unsigned long long int  uint64_t;  
 #endif 
+
+#define tMACWriteContext tLLCWriteContext
 //******************************  变量类型定义  ****************************************
 
 

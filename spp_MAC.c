@@ -14,6 +14,7 @@ uint8_t InitMACInstance()
     //g_sMACInstance->aMACWriteFrameBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*MAC_FRAME_MAX_LENGTH);
     g_sMACInstance->nMACWritePosition = 0;
     g_sMACInstance->nMACWriteLength = 0;
+    g_sMACInstance->bIsWriteFramePending = false;
 
     //滑动窗口
 
@@ -355,6 +356,133 @@ pDataRemovedZero : ",nByteCount,*pDataRemovedZero);
     return pLLCInstance;
 }
 
+uint8_t MACFrameWrite()
+{
+    //取得优先级最高的LLC实体，把它的写链表中最早的数据写到滑动窗口上
+    uint8_t nInsertedZeroFrameLength = 0;
+    uint8_t* pCtrlLLCHeader = NULL;
+    uint8_t* pCtrlFrameData = NULL;
+    uint8_t nCtrlFrameLength = 0;
+    tLLCInstance* pLLCInstance = NULL;
+    tMACWriteContext* pSingleMACFrame = NULL;
+    tLLCWriteContext* pSendLLCFrame = NULL;
+    uint8_t nCRC = 0;
+    for(int nPriority = 0; nPriority < PRIORITY; nPriority++)
+    {
+        if(g_aLLCInstance[nPriority]->pLLCFrameWriteListHead != NULL)
+        {
+            pLLCInstance = g_aLLCInstance[nPriority];
+            break;
+        }
+    }
+    //滑动窗口是否满了
+    if(pLLCInstance->bIsWriteWindowsFull)
+        return 0;
+
+    if(g_sMACInstance->bIsWriteFramePending)
+        return 0;
+
+    if(pLLCInstance->nNextCtrlFrameToSend == READ_CTRL_FRAME_NONE)
+    {
+        pSingleMACFrame = pLLCInstance->aSlideWindow[static_Modulo(pLLCInstance->nWriteNextToSendFrameId,pLLCInstance->nWindowSize)];
+        if(pSingleMACFrame->pFrameBuffer != NULL)
+        {
+            CFREE((void*)(pSingleMACFrame->pFrameBuffer));
+            pSingleMACFrame->pFrameBuffer = NULL;
+            pSingleMACFrame->nFrameLength = 0;
+        }
+        pSendLLCFrame = pLLCInstance->pLLCFrameWriteListHead;
+        
+        //(pSendLLCFrame->nFrameLength + 3)
+        pSingleMACFrame->pFrameBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*MAC_FRAME_MAX_LENGTH);
+        for(int index = 0; index < pSendLLCFrame->nFrameLength; index++)
+        {
+            nCRC ^= *(pSendLLCFrame->pFrameBuffer + index);
+        }
+        *(pSingleMACFrame->pFrameBuffer) = HEADER_SOF;
+        //填充 N(S) 和 N(R) 字段
+        *(pSingleMACFrame->pFrameBuffer + 1) |= ((pLLCInstance->nWriteNextToSendFrameId & 0x07) << 3);
+        *(pSingleMACFrame->pFrameBuffer + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+
+        *(pSingleMACFrame->pFrameBuffer + pSendLLCFrame->nFrameLength - 1) = nCRC;
+        nInsertedZeroFrameLength = static_InsertZero(pSendLLCFrame->pFrameBuffer,pSingleMACFrame->pFrameBuffer+1,pSendLLCFrame->nFrameLength);
+        
+        *(pSingleMACFrame->pFrameBuffer + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
+        //len + 2 : SOF EOF
+        pSingleMACFrame->nFrameLength = nInsertedZeroFrameLength + 2;
+
+        pLLCInstance->pLLCFrameWriteListHead = pSendLLCFrame->pNext;
+        static_AddToWriteCompletedContextList(pLLCInstance,pSingleMACFrame,1);
+        pLLCInstance->nWriteNextToSendFrameId += 1;
+
+        if(pLLCInstance->nWriteNextToSendFrameId == 0)
+            static_AvoidCounterSpin(pLLCInstance);
+
+        if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
+            pLLCInstance->bIsWriteWindowsFull = true;
+        else
+            pLLCInstance->bIsWriteWindowsFull = false;
+
+        //SPIWriteBytes(pLLCInstance,pSingleMACFrame->pFrameBuffer,pSingleMACFrame->nFrameLength,0);
+        return ;
+    }//控制帧优先级最高，直接发送
+    else
+    {
+        if(pLLCInstance->nNextCtrlFrameToSend == LLC_FRAME_RST)
+        {
+            //预留一个 CRC 字节
+            pCtrlLLCHeader = (uint8_t*)CMALLOC(sizeof(uint8_t)*4);
+            pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*7);   //SOF LEN + LLCCRTL WINDOWSIZE [INSERTED ZERO] + CRC EOF
+            
+            *pCtrlLLCHeader = 0x02;
+            *(pCtrlLLCHeader + 1) = LLC_FRAME_RST;
+            *(pCtrlLLCHeader + 2) = pLLCInstance->nWindowSize;
+            for(uint8_t index = 0; index < 3; index++)
+                nCRC ^= *(pCtrlLLCHeader + index);
+            *(pCtrlLLCHeader + 3) = nCRC;
+            nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,4);
+        }
+        else
+        {
+            //预留一个 CRC 字节
+            pCtrlLLCHeader = (uint8_t*)CMALLOC(sizeof(uint8_t)*3);
+            pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*6);   //SOF LEN + LLCCRTL [INSERTED ZERO] + CRC EOF
+            *pCtrlLLCHeader = 0x01;
+            switch(pLLCInstance->nNextCtrlFrameToSend)
+            {
+                case READ_CTRL_FRAME_RNR:
+                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_RNR;
+                    *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                    break;
+                case READ_CTRL_FRAME_ACK:
+                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_ACK;
+                    *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                    break;
+                case READ_CTRL_FRAME_REJ:
+                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_REJ;
+                    *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                    break;
+                case READ_CTRL_FRAME_UA:
+                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_UA;
+                    break;
+                default : 
+                    printf("\nthis ctrl frame is unknown\n");
+                    break;
+            }
+            for(uint8_t index = 0; index < 2; index++)
+                nCRC ^= *(pCtrlLLCHeader + index);
+            *(pCtrlLLCHeader + 2) = nCRC;
+            nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,3);
+        }
+        *(pCtrlFrameData) = HEADER_SOF;
+        *(pCtrlFrameData + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
+        nCtrlFrameLength = nInsertedZeroFrameLength + 2;
+
+        //SPIWriteBytes(pLLCInstance,pCtrlFrameData,nCtrlFrameLength,1);
+        return ;
+    }
+}
+
 bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
 {
     uint8_t nN_R_Value;
@@ -397,6 +525,26 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         return true;
     }
     return false;
+}
+
+uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame)
+{
+    tMACWriteContext* pSendMACFrame = NULL;
+    g_sMACInstance->bIsWriteFramePending = true;
+    if(bIsCtrlFrame)
+    {
+        //直接发送数据;
+        //SPI_SEND_BYTES(pData,nLength);
+    }
+    else
+    {
+        pSendMACFrame = pLLCInstance->aSlideWindow[static_Modulo(pLLCInstance->nWriteNextWindowFrameId,pLLCInstance->nWindowSize)];
+        //SPI_SEND_BYTES(pSendMACFrame->pFrameBuffer,pSendMACFrame->nFrameLength);
+        pLLCInstance->nWriteNextWindowFrameId += 1;
+        if(pLLCInstance->nWriteNextWindowFrameId == 0)
+            static_AvoidCounterSpin(pLLCInstance);
+    }
+    g_sMACInstance->bIsWriteFramePending = false;
 }
 
 uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferRemovedZero,uint8_t nLengthInsteredZero)
