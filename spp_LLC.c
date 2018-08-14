@@ -84,6 +84,16 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
         *pListHead = pWriteContext;
         (*pListHead)->pNext = pTempNode;
     }
+#ifdef DEBUG_PEINTF
+    pListHead = &(pLLCInstance->pLLCFrameWriteListHead);
+    printf("\npLLCFrameWriteListHead : \n");
+    while((*pListHead)->pNext != NULL)
+    {
+        printf("0x%08x---->",*pListHead);
+        pListHead = &(*pListHead)->pNext;
+    }
+    printf("0x%08x\n",*pListHead);
+#endif
     return 1;
 }
 //这个函数的作用是为接收到的控制帧写响应帧，并把发送动作放到 DFC 链表中
@@ -494,7 +504,7 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
 {
     uint32_t nWriteByteCount = 0;
     uint8_t nSingleLLCFrameLength = 0;
-    uint32_t nRemainingPayload = nMessageLength;
+    int nRemainingPayload = nMessageLength;
     uint8_t* pSingleLLCFrame = NULL;
     uint8_t* pSendMessageAddress = pSendMessage;
     tLLCWriteContext* pLLCWriteContext = NULL;
@@ -505,7 +515,7 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
         if(nRemainingPayload > LLC_FRAME_MAX_LENGTH)
         {
             pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH + 3));
-            *pSingleLLCFrame = LLC_FRAME_MAX_LENGTH + 2;
+            *pSingleLLCFrame = (uint8_t)(LLC_FRAME_MAX_LENGTH + 2);
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
             *(pSingleLLCFrame + 2) |= 0x00;         //不是最后一片，分片的 CB 位为0
@@ -515,7 +525,7 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
         else
         {
             pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nRemainingPayload + 3));
-            *pSingleLLCFrame = nRemainingPayload + 2;
+            *pSingleLLCFrame = (uint8_t)(nRemainingPayload + 2);
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
             *(pSingleLLCFrame + 2) |= 0x80;         //是最后一片，分片的 CB 位为1
@@ -524,17 +534,26 @@ uint32_t LLCSendMessage(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nM
         }
 
         *(pSingleLLCFrame + 1) = 0x80;  //信息帧，N(S)和N(R)字段在发送的时候填充
-        for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame; nSingleLLCFrameLength++)
+        for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-2; nSingleLLCFrameLength++)
         {
             *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *pSendMessageAddress++;
         }
         pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
+#ifdef DEBUG_PEINTF
+        printf("\nthe *pSingleLLCFrame is : 0x%02x\n",*pSingleLLCFrame);
+        printf("\nthis new writecontext is : 0x%08x\n",pLLCWriteContext);
+#endif
         pLLCWriteContext->pLLCFrameBuffer = pSingleLLCFrame;
         pLLCWriteContext->nLLCFrameLength = nSingleLLCFrameLength;
+        pLLCWriteContext->pCallbackFunction = (LLCFrameWriteCompleted*)CMALLOC(sizeof(LLCFrameWriteCompleted));
         pLLCWriteContext->pCallbackFunction = NULL;
+        pLLCWriteContext->pCallbackFunction = (void*)CMALLOC(sizeof(void));        
         pLLCWriteContext->pCallbackParameter = NULL;
+        pLLCWriteContext->pCallbackFunction = (LLCFrameWriteGetData*)CMALLOC(sizeof(LLCFrameWriteGetData));
         pLLCWriteContext->pSreamCallbackFunction = NULL;
+        pLLCWriteContext->pCallbackFunction = (void*)CMALLOC(sizeof(void));        
         pLLCWriteContext->pStreamCallbackParameter = NULL;
+        pLLCWriteContext->pCallbackFunction = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
         pLLCWriteContext->pNext = NULL;
 
         nWriteByteCount += nSingleLLCFrameLength;

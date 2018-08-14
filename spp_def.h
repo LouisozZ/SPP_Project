@@ -54,7 +54,8 @@ typedef unsigned long long int  uint64_t;
 #define TRAILER_EOF     0x7f
 
 //帧长度
-#define LLC_FRAME_MAX_LENGTH 30
+//#define LLC_FRAME_MAX_LENGTH 30
+#define LLC_FRAME_MAX_LENGTH 4
 #define MAC_FRAME_MAX_LENGTH LLC_FRAME_MAX_LENGTH+4+(LLC_FRAME_MAX_LENGTH/5)
 #define SINGLE_MESSAGE_MAX_LENGTH 256
 

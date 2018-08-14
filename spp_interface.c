@@ -46,8 +46,10 @@ int SendMessage(void* pSendMessage)
     uint8_t nMessagePriority;
     uint32_t nSentBytes;
 
-    nMessageLength = *(uint32_t*)(pSendMessage + 1);
-    nMessagePriority = *(uint8_t*)(pSendMessage);
+    // nMessageLength = *(uint32_t*)(pSendMessage + 1);
+    // nMessagePriority = *(uint8_t*)(pSendMessage);
+    nMessageLength = 27;
+    nMessagePriority = 0;
 
     nSentBytes = LLCSendMessage((uint8_t*)pSendMessage,nMessageLength,nMessagePriority);
     if(nSentBytes == nMessageLength)
