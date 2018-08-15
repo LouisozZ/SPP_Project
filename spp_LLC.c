@@ -17,8 +17,9 @@ uint8_t InitLLCInstance()
         g_aLLCInstance[index]->pReadHandlerParameter = NULL;
 
         //写操作相关
+        g_aLLCInstance[index]->nWindowSize = 4;
         g_aLLCInstance[index]->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*SINGLE_MESSAGE_MAX_LENGTH);
-        g_aLLCInstance[index]->nMessageLength = 20;
+        g_aLLCInstance[index]->nMessageLength = 1;
         g_aLLCInstance[index]->nWritePosition = 0;
         g_aLLCInstance[index]->bIsWriteWindowsFull = false;
         g_aLLCInstance[index]->bIsWriteOtherSideReady = false;    
@@ -36,6 +37,9 @@ uint8_t InitLLCInstance()
         for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
         {
             g_aLLCInstance[index]->aSlideWindow[nWindowNum] = (tMACWriteContext*)CMALLOC(sizeof(tMACWriteContext));
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = NULL;
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->nFrameLength = 0;
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pNext = NULL;
         }
     }
     return 1;
@@ -85,8 +89,10 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
     else
     {
         pTempNode = *pListHead;
+        //##加锁
         *pListHead = pWriteContext;
         (*pListHead)->pNext = pTempNode;
+        //##解锁
     }
 
     return 1;
@@ -548,11 +554,11 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
 
     while(nRemainingPayload > 0)
     {
-        if(nRemainingPayload > LLC_FRAME_MAX_LENGTH)
+        if(nRemainingPayload > LLC_FRAME_MAX_DATA_LENGTH)
         {
             //+4 LEN LLCHEADER PACKAGEHEADER 预留一个 CRC 
-            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH + 4));
-            *pSingleLLCFrame = (uint8_t)(LLC_FRAME_MAX_LENGTH + 2);
+            pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH));
+            *pSingleLLCFrame = (uint8_t)(LLC_FRAME_MAX_DATA_LENGTH + 2);
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
             *(pSingleLLCFrame + 2) |= 0x00;         //不是最后一片，分片的 CB 位为0
@@ -602,7 +608,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength)
 {
     uint8_t nPriority = 0;
-    nPriority = *(pLLCFrameWithLength+2) & PRIORITY_MASK;
+    nPriority = (*(pLLCFrameWithLength+2) & PRIORITY_MASK);
     CDebugAssert(nPriority < PRIORITY);
     return g_aLLCInstance[nPriority];
 }

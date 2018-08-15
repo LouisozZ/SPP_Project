@@ -37,6 +37,14 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
     return 0;
 }
 
+uint8_t SPI_SEND_BYTES(uint8_t* pData,uint8_t nLength)
+{
+    printf("\n-------- send bytes as flow ----------\n\n");
+    for(int index = 0; index < nLength; index++)
+        printf("0x%02x ",*(pData+index));
+    printf("\n\n--------------------------------------\n");
+}
+
 void* CMALLOC(uint32_t length)
 {
     return (void*)malloc(length);
