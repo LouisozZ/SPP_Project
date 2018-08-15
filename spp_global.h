@@ -5,6 +5,7 @@
 #include "spp_include.h"
 
 uint8_t g_nVersion;
+uint32_t g_nAbsoluteTime;
 
 tSPPInstance* g_sSPPInstance;
 tMACInstance* g_sMACInstance;

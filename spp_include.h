@@ -10,6 +10,7 @@
 #include "spp_MAC.h"
 #include "spp_porting.h"
 #include "spp_interface.h"
+#include "spp_multiTimer.h"
 
 #include "spp_global.h"
 
