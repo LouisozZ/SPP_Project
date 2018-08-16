@@ -2,6 +2,11 @@
     "C_Cpp.errorSquiggles": "Enabled",
     "files.associations": {
         "spp_include.h": "c",
-        "spp_interface.h": "c"
+        "spp_interface.h": "c",
+        "spp_global.h": "c",
+        "spp_llc.h": "c",
+        "spp_mac.h": "c",
+        "spp_porting.h": "c",
+        "spp_multitimer.h": "c"
     }
 }

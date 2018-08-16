@@ -1,4 +1,4 @@
-#include "spp_include.h"
+#include "spp_global.h"
 
 #ifdef TEST_MAIN
 

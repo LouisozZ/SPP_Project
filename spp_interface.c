@@ -1,4 +1,4 @@
-#include "spp_include.h"
+#include "spp_global.h"
 
 /**
  * @function    MPU向MCU发起建立连接请求
@@ -86,8 +86,40 @@ int RecvMessage(void* pDataAddress,uint32_t* pMessageLength)
 uint8_t InitSPP()
 {
 
+    uint8_t index = 0;
     //版本信息的确定应该在连接建立的时候确定，暂时写在这里
     g_nVersion = VERSION_1_0;
+
+    for(index = 0;index < MAX_TIMER_UPPER_LIMIT; index++)
+    {
+        switch(index)
+        {
+            case 0:
+                g_aDefaultTimeout[0] = TIME_OUT_INTERVAL_0;
+                g_aTimerID[0] = TIMER_0;
+                break;
+            case 1:
+                g_aDefaultTimeout[1] = TIME_OUT_INTERVAL_1;
+                g_aTimerID[1] = TIMER_1;
+                break;
+            case 2:
+                g_aDefaultTimeout[2] = TIME_OUT_INTERVAL_2;
+                g_aTimerID[2] = TIMER_2;
+                break;
+            case 3:
+                g_aDefaultTimeout[3] = TIME_OUT_INTERVAL_3;
+                g_aTimerID[3] = TIMER_3;
+                break;
+            case 4:
+                g_aDefaultTimeout[4] = TIME_OUT_INTERVAL_4;
+                g_aTimerID[4] = TIMER_4;
+                break;
+            case 5:
+                g_aDefaultTimeout[5] = TIME_OUT_INTERVAL_5;
+                g_aTimerID[5] = TIMER_5;
+                break;
+        }
+    }
 
     //SPPInstance初始化
     g_sSPPInstance = (tSPPInstance*)CMALLOC(sizeof(tSPPInstance));
