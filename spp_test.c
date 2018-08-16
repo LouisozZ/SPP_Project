@@ -70,6 +70,8 @@
 //     printf("\n");
 // }
 
+int cancelflag = 0;
+
 void Timer1_Timeout_CallBack(void* pParameter)
 {
     int timerid = 0;
@@ -79,6 +81,7 @@ void Timer1_Timeout_CallBack(void* pParameter)
 void Timer2_Timeout_CallBack(void* pParameter)
 {
     int timerid = 0;
+    cancelflag++;
     timerid = (int*)(pParameter);
     printf("\nthis is the timer2 %d callbackfunciton!\n",timerid);
 }
@@ -108,19 +111,37 @@ void Timer0_Timeout_CallBack(void* pParameter)
 }
 int main()
 {
+    tSppMultiTimer* pEarliestTimer = NULL;
     int nPara = 78;
+    uint8_t tiems = 0;
 
     InitSPP();
     MultiTimerInit();
 
     uint16_t sec = 0;
-    SetTimer(TIMER_1,5,false,Timer1_Timeout_CallBack,(void*)nPara);
+    uint8_t sadf = 0;
+    uint8_t re = 0;
+    SetTimer(TIMER_1,3000,false,Timer1_Timeout_CallBack,(void*)nPara);
+    SetTimer(TIMER_2,2648,false,Timer2_Timeout_CallBack,(void*)nPara);
+    SetTimer(TIMER_3,4215,false,Timer3_Timeout_CallBack,(void*)nPara);
+
     while(1)
     {
         sec++;
-        if((sec%1000) == 0)
+        if(sec == 0)
         {
+            sadf++;
+        }
+
+        if(sadf >= 10)
+        {
+            sadf = 0;
             SYSTimeoutHandler();
+            if((cancelflag == 3) && (re != 2))
+            {
+                re = CancelTimerTask(TIMER_2,CANCEL_MODE_IMMEDIATELY);
+                //CANCEL_MODE_AFTER_NEXT_TIMEOUT
+            }
         }
     }
 }

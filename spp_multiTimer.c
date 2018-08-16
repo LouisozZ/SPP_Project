@@ -20,6 +20,7 @@ static void AddTimerToCheckList(tSppMultiTimer* pTimer)
         g_pTimeoutCheckListHead->pNextTimer = NULL;
         g_pTimeoutCheckListHead->pPreTimer = NULL;
         g_pTimeoutCheckListHead->pNextHandle = NULL;
+        return;
     }
     else
     {
@@ -38,7 +39,7 @@ static void AddTimerToCheckList(tSppMultiTimer* pTimer)
                 {
                     pTimer->pNextHandle = pEarliestTimer->pNextHandle;
                     pEarliestTimer->pNextHandle = pTimer;
-                    break;
+                    return;
                 }
                 else                                                    //找到了超时时刻大于新加入timer的第一个节点
                 {
@@ -49,7 +50,7 @@ static void AddTimerToCheckList(tSppMultiTimer* pTimer)
                         pTimer->pPreTimer = NULL;
                         pTimer->pNextHandle = NULL;
                         g_pTimeoutCheckListHead = pTimer;
-                        break;
+                        return;
                     }
                     else                                                //中间节点
                     {
@@ -58,7 +59,7 @@ static void AddTimerToCheckList(tSppMultiTimer* pTimer)
                         pTimer->pPreTimer = pEarliestTimer->pPreTimer;
                         pEarliestTimer->pPreTimer = pTimer;
                         pTimer->pNextHandle = NULL;
-                        break;
+                        return;
                     }
                 }
             }  
@@ -70,6 +71,7 @@ static void AddTimerToCheckList(tSppMultiTimer* pTimer)
             pTimer->pNextTimer = NULL;
             pTimer->pNextHandle = NULL;
         }
+        return;
     }
 }
 
@@ -121,16 +123,58 @@ uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
                 if(pHandleTimer->nTimerID == nTimerID)
                 {
                     if(pHandleTimer_pre == NULL)
-                        pEarliestTimer = pHandleTimer->pNextHandle;
+                    {
+                        if(pHandleTimer->pNextHandle != NULL)
+                        {
+                            pEarliestTimer = pHandleTimer->pNextHandle;
+                            pEarliestTimer->pPreTimer = pHandleTimer->pPreTimer;
+                            if(pHandleTimer->pPreTimer != NULL)
+                                pHandleTimer->pPreTimer->pNextTimer = pEarliestTimer;
+                            pEarliestTimer->pNextTimer = pHandleTimer->pNextTimer;
+                            if(pHandleTimer->pNextTimer != NULL)
+                                pHandleTimer->pNextTimer->pPreTimer = pEarliestTimer;
+                            pHandleTimer->pNextTimer = NULL;
+                            pHandleTimer->pPreTimer = NULL;
+                            pHandleTimer->pNextHandle = NULL;
+                        }
+                        else
+                        {
+                            if(pEarliestTimer->pPreTimer == NULL)
+                            {
+                                g_pTimeoutCheckListHead = pEarliestTimer->pNextTimer;
+                                g_pTimeoutCheckListHead->pPreTimer = NULL;
+                                pEarliestTimer->pNextTimer = NULL;
+                            }
+                            else if(pEarliestTimer->pNextTimer == NULL)
+                            {
+                                pEarliestTimer->pPreTimer->pNextTimer = NULL;
+                                pEarliestTimer->pPreTimer = NULL;
+                            }
+                            else
+                            {
+                                pEarliestTimer->pPreTimer->pNextTimer = pEarliestTimer->pNextTimer;
+                                pEarliestTimer->pNextTimer->pPreTimer = pEarliestTimer->pPreTimer;
+                                pEarliestTimer->pPreTimer = NULL;
+                                pEarliestTimer->pNextTimer = NULL;
+                            }
+                        }
+                    }
                     else
+                    {
                         pHandleTimer_pre->pNextHandle = pHandleTimer->pNextHandle;
+                        pHandleTimer->pNextHandle = NULL;
+                    }
                     return 0;
                 }
-                pHandleTimer_pre = pHandleTimer;
-                pHandleTimer = pHandleTimer_pre->pNextHandle;
+                else
+                {
+                    pHandleTimer_pre = pHandleTimer;
+                    pHandleTimer = pHandleTimer_pre->pNextHandle;
+                }
             }
             pEarliestTimer = pEarliestTimer->pNextTimer;
         }
+        printf("\nThere is no this timer task!\n");
         return 2;   //出错，超时检测链表中没有这个超时任务
     }
     else if(nCancelMode == CANCEL_MODE_AFTER_NEXT_TIMEOUT)
@@ -152,26 +196,29 @@ uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
 void SYSTimeoutHandler()
 {
     tSppMultiTimer* pEarliestTimer = NULL;
-    pEarliestTimer = g_pTimeoutCheckListHead;
+    tSppMultiTimer* pWaitingToHandle = NULL;
+    tSppMultiTimer* pEarliestTimerPreHandle = NULL;
 
     if(g_pTimeoutCheckListHead != NULL)
     {
         if((g_pTimeoutCheckListHead->nTimeStamp <= g_nAbsoluteTime) && (g_pTimeoutCheckListHead->bIsOverflow == g_bIs_g_nAbsoluteTimeOverFlow))
         {
-            while(pEarliestTimer != NULL)
-            {
-                if(!(pEarliestTimer->bIsSingleUse))
-                    AddTimerToCheckList(pEarliestTimer);
-                pEarliestTimer = pEarliestTimer->pNextHandle;
-            }
-            pEarliestTimer = g_pTimeoutCheckListHead;
+            pWaitingToHandle = g_pTimeoutCheckListHead;
             g_pTimeoutCheckListHead = g_pTimeoutCheckListHead->pNextTimer;
-            if(g_pTimeoutCheckListHead != NULL)
-                g_pTimeoutCheckListHead->pPreTimer = NULL;
+            g_pTimeoutCheckListHead->pPreTimer = NULL;
+            pWaitingToHandle->pNextTimer = NULL;
+
+            pEarliestTimer = pWaitingToHandle;
             while(pEarliestTimer != NULL)
             {
-                pEarliestTimer->pTimeoutCallbackfunction(pEarliestTimer->pTimeoutCallbackParameter);
+                pEarliestTimerPreHandle = pEarliestTimer;
                 pEarliestTimer = pEarliestTimer->pNextHandle;
+                pEarliestTimerPreHandle->pNextHandle = NULL;
+                pEarliestTimerPreHandle->pNextTimer = NULL;
+                pEarliestTimerPreHandle->pPreTimer = NULL;
+                pEarliestTimerPreHandle->pTimeoutCallbackfunction(pEarliestTimerPreHandle->pTimeoutCallbackParameter);
+                if(!(pEarliestTimerPreHandle->bIsSingleUse))
+                    AddTimerToCheckList(pEarliestTimerPreHandle);
             }
         }
     }
