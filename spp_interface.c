@@ -51,6 +51,8 @@ int SendMessage(void* pSendMessage)
     nMessageLength = 19;
     nMessagePriority = 0;
 
+    g_sSPPInstance->nNextMessageHeader = CONNECT_SEND_RECV_MESSAGE;
+
     nSentBytes = LLCFrameWrite((uint8_t*)pSendMessage,nMessageLength,nMessagePriority);
     if(nSentBytes == nMessageLength)
         return 1;

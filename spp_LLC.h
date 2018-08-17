@@ -75,6 +75,7 @@ typedef struct tLLCInstance
     uint32_t nReadNextToReceivedFrameId;
     uint32_t nReadLastAcknowledgedFrameId;
     bool bIsWaitingLastFragment;
+    bool bIsFirstFregment;
     uint32_t nReadT1Timeout;
     LLCFrameReadData* pReadHandler;
     void* pReadHandlerParameter;

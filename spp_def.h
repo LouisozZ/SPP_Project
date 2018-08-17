@@ -51,6 +51,42 @@ typedef unsigned long long int  uint64_t;
 #define MAX_WINDOW_SIZE      4
 
 //-----------------------
+//连接管理状态机
+//-----------------------
+//状态
+#define CONNECT_STATU_DISCONNECTED                  0
+#define CONNECT_STATU_WAITING_LINK_CONFIRM          1
+#define CONNECT_STATU_WAITING_CONFIRM               2
+#define CONNECT_STATU_CONNECTED                     3
+#define CONNECT_STATU_WAITING_DISCONNECT_CONFIRM    4
+#define CONNECT_STATU_WAITING_RESET_CONFIRM         5
+
+//空闲帧
+#define CONNECT_IDLE                    0x00
+//连接帧
+#define CONNECT_REQUIRE_CONNECT         0xfb
+#define CONNECT_CONFIRM_CONNECT         0xe4
+#define CONNECT_CONFIRM_AGAIN           0xf5
+#define CONNECT_CONNECT_ERROR           0xee
+//断连接帧
+#define CONNECT_REQUIRE_DISCONNECT      0x1b
+#define CONNECT_CONFIRM_DISCONNECT      0x04
+#define CONNECT_DISCONNECT_ERROR        0x0e
+//重启帧
+#define CONNECT_REQUIRE_RESET           0xbb
+#define CONNECT_CONFIRM_RESET           0xa4
+#define CONNECT_RESET_ERROR             0xae
+//数据传输帧
+#define CONNECT_SEND_RECV_MESSAGE       0x44
+#define CONNECT_SEND_RECV_ERROR         0x4e
+//掩码
+#define CONNECT_TYPE_MASK               0xe0
+#define CONNECT_VALUE_MASK              0x1f
+#define CONNECT_REQUIRE_VALUE           0x1b
+#define CONNECT_CONFIRM_VALUE           0x04
+#define CONNECT_ERROR_VALUE             0x0e
+
+//-----------------------
 //读状态机
 //-----------------------
 #define MAC_FRAME_READ_STATUS_IDLE               0
