@@ -101,7 +101,7 @@ typedef unsigned long long int  uint64_t;
 //帧长度
 //-----------------------
 //#define LLC_FRAME_MAX_LENGTH 30
-#define LLC_FRAME_MAX_LENGTH        11
+#define LLC_FRAME_MAX_LENGTH        18
 #define LLC_FRAME_MAX_DATA_LENGTH   (LLC_FRAME_MAX_LENGTH-4)
 #define MAC_FRAME_MAX_LENGTH        (LLC_FRAME_MAX_LENGTH+4+(LLC_FRAME_MAX_LENGTH/5))
 #define SINGLE_MESSAGE_MAX_LENGTH   256
@@ -116,7 +116,7 @@ typedef unsigned long long int  uint64_t;
 //-----------------------
 
 //  package header  +****---        说明：  +：CB位，分片信息     ****：版本信息，占用四位    ---：优先级，占用三位
-#define VERSION_FIELD_MASK  0x78
+#define VERSION_FIELD_MASK  0x38
 
 #define VERSION_1_0         0x08
 

@@ -110,7 +110,7 @@ typedef struct tLLCInstance
 uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI);
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength);
 bool AnalysisReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFrame);
-uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority);
+uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority,bool bIsData);
 uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWriteContext* pMACWriteContext,bool bIsAddToHead);
 uint8_t InitLLCInstance();
 void static_AvoidCounterSpin(tLLCInstance* pLLCInstance);

@@ -325,7 +325,7 @@ function_return:
    return;
 }
 
-uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority)
+uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority,bool bIsData)
 {
     uint32_t nWriteByteCount = 0;
     uint8_t nSingleLLCFrameLength = 0;
@@ -349,6 +349,8 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
             *(pSingleLLCFrame + 2) |= 0x00;         //不是最后一片，分片的 CB 位为0
+            if(bIsData)
+                *(pSingleLLCFrame + 2) |= 0x40;     //是一个数据帧，DT位1
             *(pSingleLLCFrame + 2) |= (g_nVersion & VERSION_FIELD_MASK);   //版本信息
             *(pSingleLLCFrame + 2) |= (nMessagePriority & PRIORITY_MASK);  //优先级信息            
         }
@@ -359,6 +361,8 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             //Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
             *(pSingleLLCFrame + 2) |= 0x80;         //是最后一片，分片的 CB 位为1
+            if(bIsData)
+                *(pSingleLLCFrame + 2) |= 0x40;     //是一个数据帧，DT位1
             *(pSingleLLCFrame + 2) |= (g_nVersion & VERSION_FIELD_MASK);   //版本信息
             *(pSingleLLCFrame + 2) |= (nMessagePriority & PRIORITY_MASK);  //优先级信息
         }
@@ -382,7 +386,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
 
         pLLCWriteContext->pFrameBuffer = pSingleLLCFrame;
-        pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;
+        pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;//total length conclude len and crc
         //pLLCWriteContext->pCallbackFunction = (LLCFrameWriteCompleted*)CMALLOC(sizeof(LLCFrameWriteCompleted));
         pLLCWriteContext->pCallbackFunction = NULL;
         pLLCWriteContext->pCallbackParameter = (void*)CMALLOC(sizeof(void));        
@@ -398,9 +402,13 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         nRemainingPayload -= nSingleLLCFrameLength;
 
         pLLCInstance = GetCorrespondingLLCInstance(pSingleLLCFrame);
-        static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,0);
+        //data frame add to the bottom, but the connect frame add to the head in order to be found firstly
+        if(bIsData)
+            static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,0);
+        else 
+            static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,1);
     }
-    return nWriteByteCount;
+    return nWriteByteCount-1;//in fact the data to be sent don't have message header
 }
 
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength)

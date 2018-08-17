@@ -214,11 +214,18 @@ tLLCInstance* MACFrameRead()
             }
         }
     } // while() 
-    
+    g_sMACInstance->nMACReadFrameRemaining = nReadBufferCount;
+    g_sMACInstance->nMACReadStatu = nStatus;
+    g_sMACInstance->nMACReadPosition = nReadPosition;
     //MAC帧要做去0处理的字节数 = nByteCount - 2;
     //把执行了插 0 操作的 LLC 帧复原，然后根据优先级字段选择合适的处理实体。
     pDataRemovedZero = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nByteCount - 2));
-    static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2));
+
+    if(!static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2)))
+    {
+        printf("\nbit error!\n");
+        MACFrameRead();
+    }
     g_sMACInstance->nMACReadCRC = 0;
     for(int index = 0; index < *pDataRemovedZero + 1; index++)
     {
@@ -227,7 +234,15 @@ tLLCInstance* MACFrameRead()
     nCRC = *(pDataRemovedZero+*pDataRemovedZero+1);
     if(nCRC != g_sMACInstance->nMACReadCRC)
     {
-        printf("\n\nCRC error!\ncrc in message : 0x%02x\ncrc compute : 0x%02x\n\n",nCRC,g_sMACInstance->nMACReadCRC);
+#ifdef DEBUG_PRINTF
+        printf("\n\nCRC error!\ncrc in message : 0x%02x\ncrc compute : 0x%02x\n",nCRC,g_sMACInstance->nMACReadCRC);
+        printf("this message is :\n ");
+        for(int index = 0; index <= *pDataRemovedZero + 1; index++)
+        {
+            printf("0x%02x ",*(pDataRemovedZero+index));
+        }
+        printf("\n");
+#endif
         MACFrameRead();
     }
 
@@ -244,9 +259,6 @@ tLLCInstance* MACFrameRead()
 #endif
     nCtrlHeader = *(pDataRemovedZero + 1);
 
-    g_sMACInstance->nMACReadFrameRemaining = nReadBufferCount;
-    g_sMACInstance->nMACReadStatu = nStatus;
-    g_sMACInstance->nMACReadPosition = nReadPosition;
 //=======================对帧进行判断，如果是控制帧，立马处理，如果是信息帧，丢到读缓冲   ====================
     //控制帧    控制帧带了package头，因为有优先级信息
     if(*pDataRemovedZero == 2)
@@ -295,18 +307,53 @@ tLLCInstance* MACFrameRead()
             CDebugAssert(pLLCInstance != NULL);
             g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
             
-            if(pLLCInstance->bIsFirstFregment)
+            nMessageHeader = *(pDataRemovedZero + 3);
+            nPackageHeader = *(pDataRemovedZero + 2);
+
+            if(((nPackageHeader & 0x80) == 0x80) && ((nPackageHeader & 0x40) == 0x00))
             {
-                pLLCInstance->bIsFirstFregment = false;
-                nMessageHeader = *(pDataRemovedZero + 3);
-                if(nMessageHeader == CONNECT_SEND_RECV_MESSAGE)     //正常的数据帧
-                {  
-                    nLength = *pDataRemovedZero;
-                    *pDataRemovedZero = *pDataRemovedZero - 1;
-                    for(int index = 0; index <= nLength; index++)
+                //只有一个分片，且不是数据帧
+                if((nMessageHeader & CONNECT_VALUE_MASK) == CONNECT_ERROR_VALUE)   //错误帧
+                {
+                    ConnectErrorFrameHandle(nMessageHeader);
+                }
+                else    //正常的控制帧
+                {
+                    ConnectCtrlFrameACK(nMessageHeader);
+                }
+            }
+            else if((nPackageHeader & 0x40) == 0x40)
+            {
+                if(pLLCInstance->bIsFirstFregment)
+                {
+                    pLLCInstance->bIsFirstFregment = false;
+                    nMessageHeader = *(pDataRemovedZero + 3);
+                    if(nMessageHeader == CONNECT_SEND_RECV_MESSAGE)     //正常的数据帧
+                    {  
+                        nLength = *pDataRemovedZero;
+                        *pDataRemovedZero = *pDataRemovedZero - 1;
+                        for(int index = 0; index <= nLength; index++)
+                        {
+                            if(index == 3)
+                                continue;
+                            if(pLLCInstance->nLLCReadWritePosition >= READ_BUFFER_SIZE)
+                                pLLCInstance->nLLCReadWritePosition = 0;
+
+                            pLLCInstance->aLLCReadBuffer[(pLLCInstance->nLLCReadWritePosition)++] = *(pDataRemovedZero + index);
+                        }
+
+                        if(!CheckReadBufferFree(pLLCInstance))//读缓冲区满了
+                        {
+                            pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_RNR;
+                            pLLCInstance->bIsReadBufferFull = true;
+                        }
+                    }
+
+                }
+                else
+                {
+                    for(int index = 0; index <= *pDataRemovedZero; index++)
                     {
-                        if(index == 3)
-                            continue;
                         if(pLLCInstance->nLLCReadWritePosition >= READ_BUFFER_SIZE)
                             pLLCInstance->nLLCReadWritePosition = 0;
 
@@ -319,37 +366,11 @@ tLLCInstance* MACFrameRead()
                         pLLCInstance->bIsReadBufferFull = true;
                     }
                 }
-                else if((nMessageHeader & CONNECT_VALUE_MASK) == CONNECT_ERROR_VALUE)   //错误帧
+                if((nPackageHeader & 0x80) == 0x80)
                 {
-                    ConnectErrorFrameHandle(nMessageHeader);
+                    pLLCInstance->bIsFirstFregment = true;
                 }
-                else    //正常的控制帧
-                {
-                    ConnectCtrlFrameACK(nMessageHeader);
-                }
-            }
-            else
-            {
-                for(int index = 0; index <= *pDataRemovedZero; index++)
-                {
-                    if(pLLCInstance->nLLCReadWritePosition >= READ_BUFFER_SIZE)
-                        pLLCInstance->nLLCReadWritePosition = 0;
-
-                    pLLCInstance->aLLCReadBuffer[(pLLCInstance->nLLCReadWritePosition)++] = *(pDataRemovedZero + index);
-                }
-
-                if(!CheckReadBufferFree(pLLCInstance))//读缓冲区满了
-                {
-                    pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_RNR;
-                    pLLCInstance->bIsReadBufferFull = true;
-                }
-            }
-            nPackageHeader = *(pDataRemovedZero + 2);
-            if((nPackageHeader & 0x80) == 0x80)
-            {
-                pLLCInstance->bIsFirstFregment = true;
-            }
-                
+            }   
         }//未知帧类型
         else 
         {
@@ -370,6 +391,7 @@ uint8_t MACFrameWrite()
     tMACWriteContext* pSingleMACFrame = NULL;
     tLLCWriteContext* pSendLLCFrame = NULL;
     uint8_t nCRC = 0;
+    //the connect ctrl frame belong to priority 0, so if there is any connect ctrl frame, is must be found firstly
     for(int nPriority = 0; nPriority < PRIORITY; nPriority++)
     {
         if((g_aLLCInstance[nPriority]->pLLCFrameWriteListHead != NULL) || (g_aLLCInstance[nPriority]->nNextCtrlFrameToSend != READ_CTRL_FRAME_NONE))
@@ -385,10 +407,16 @@ uint8_t MACFrameWrite()
     }
     //滑动窗口是否满了
     if(pLLCInstance->bIsWriteWindowsFull)
+    {
+        printf("\nthe slide window have been full!\n");
         return 0;
+    }
 
     if(g_sMACInstance->bIsWriteFramePending)
+    {
+        printf("\nThe wirte mechine is pending!\n");
         return 0;
+    }
 
     if(pLLCInstance->nNextCtrlFrameToSend == READ_CTRL_FRAME_NONE)
     {
@@ -634,7 +662,7 @@ uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferR
                 if(nIgnore == 1)
                 {
                     printf("the process inserting zero error!\nreturn...\n");
-                    return ;
+                    return 0;
                 }
                 n5Conut++;
                 nBitValue = 0x80;
