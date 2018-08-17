@@ -139,11 +139,6 @@ uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWr
 
     return 1;
 }
-//这个函数的作用是为接收到的控制帧写响应帧
-bool static_WriteReceptionCtrlFrame(tLLCInstance* pLLCInstance,uint8_t nCtrlFrame/*,uint32_t nSHDLCFrameReceptionCounter*/)
-{
-    return true;
-}
 
 static void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize)
 {
@@ -236,6 +231,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     //在等待分片，组织成完整一帧，可以写入
     if((g_sSPPInstance->nMessageLength == 0) || (pLLCInstance->bIsWaitingLastFragment == true))
     {
+        g_sSPPInstance->bIsMessageReady = false;
         pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength);
         nCtrlHeader = *pBuffer;
 #ifdef DEBUG_PRINTF
@@ -252,18 +248,25 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         /* build a RR frame with the same "next to receive identifier" */
         nCtrlHeader &= 0x07;
         nCtrlHeader |= 0xC0;
-        /* Send this fake acknowledgememnt piggy-backed with the I-Frame
-         * to the the write state machine
-        */
+
         //根据帧头 nCtrlHeader 来写响应
-        //CtrlFrameAcknowledge(nCtrlHeader,pLLCInstance)
-        if (static_WriteReceptionCtrlFrame(pLLCInstance, nCtrlHeader) != true)
+        if(!CtrlFrameAcknowledge(nCtrlHeader,pLLCInstance))
         {
-            //PNALDebugWarning("No more processing of this frame...");
-            //return;
+            //return 0;
+        }
+        
+        if(nReceivedFrameId != pLLCInstance->nReadNextToReceivedFrameId)
+            pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_REJ;
+        else
+        {
+            pLLCInstance->nReadNextToReceivedFrameId++;
+            if(pLLCInstance->nReadNextToReceivedFrameId == 0)
+            {
+                static_AvoidCounterSpin(pLLCInstance);
+            }
         }
 
-        /* Compute the number of non-acknoledged frames */
+        //nReadLastAcknowledgedFrameId 是我已经给对方发送了的已经接受的确认信息
         nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
         
         /* If this number is greater than or equals to the window size */
@@ -274,24 +277,17 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         }
         else if( nNonAcknowledgedFrameNumber == 1 )
         {
-
+            printf("\nalready read the last frame or other side haven't send frame.\n");
         }
-
-        pLLCInstance->nReadNextToReceivedFrameId++;
-        if(pLLCInstance->nReadNextToReceivedFrameId == 0)
-        {
-            static_AvoidCounterSpin(pLLCInstance);
-        }
-
 
         /* cancel thr TIMER_T6_SHDLC_RESEND and clear flag if an I-frame
         is received before timer expiration*/
-        if(pLLCInstance->bIsRRFrameAlreadySent == true)
-        {
-           pLLCInstance->bIsRRFrameAlreadySent = false;
-           /*T6是应答超时时间，如果T6时间过去了还没有收到发送帧的应答，则重发，如果收到了，则取消T6超时任务*/
-           //PNALMultiTimerCancel(pBindingContext, TIMER_T6_SHDLC_RESEND);
-        }
+        // if(pLLCInstance->bIsRRFrameAlreadySent == true)
+        // {
+        //    pLLCInstance->bIsRRFrameAlreadySent = false;
+        //    /*T6是应答超时时间，如果T6时间过去了还没有收到发送帧的应答，则重发，如果收到了，则取消T6超时任务*/
+        //    //PNALMultiTimerCancel(pBindingContext, TIMER_T6_SHDLC_RESEND);
+        // }
 
         /* If the I-frame is HCI chained, force the transmition of the next RR */
         if((pBuffer[1] & 0x80) == 0)
@@ -305,6 +301,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         {
             printf("\nthis is the last fragment or this is a single message\n");
             pLLCInstance->bIsWaitingLastFragment = false;
+            g_sSPPInstance->bIsMessageReady = true;
             //把一帧 LLC 帧解析成message向上传递
         }
         for(int index = 2; index < nThisLLCFrameLength; index++)
@@ -320,8 +317,8 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         printf("\nmessage still in buffer\n");
         return 0;
     }
-function_return:
-   //static_PSHDLCWriteTransmit(pBindingContext, pLLCInstance, bForceTransmit);
+
+   MACFrameWrite();
    return;
 }
 

@@ -38,18 +38,18 @@ int main()
     InitSPP();
     SendMessage((void*)olddata);
 
-    g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
-    LLCFrameWrite(NULL,0,0,false);
+    // g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
+    // LLCFrameWrite(NULL,0,0,false);
 
-    g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_DISCONNECT;
-    LLCFrameWrite(NULL,0,0,false);
+    // g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_DISCONNECT;
+    // LLCFrameWrite(NULL,0,0,false);
 
-    for(int index = 0; index < 8; index++)
-    {
-        MACFrameWrite();
-        if(index == 3)
-            g_aLLCInstance[0]->nNextCtrlFrameToSend = READ_CTRL_FRAME_RNR;
-    }
+    // for(int index = 0; index < 8; index++)
+    // {
+    //     MACFrameWrite();
+    //     if(index == 3)
+    //         g_aLLCInstance[0]->nNextCtrlFrameToSend = READ_CTRL_FRAME_RNR;
+    // }
     printf("\n\n======================================================================\n\n");
     for(int i = 0; i < 8; i++)
     {

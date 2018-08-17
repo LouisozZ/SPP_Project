@@ -10,6 +10,7 @@ typedef struct tSPPInstance{
     uint8_t nNextMessageHeader;
     uint8_t* pMessageBuffer;
     uint8_t nMessageLength;
+    bool bIsMessageReady;
     SPPConnectCompleted* pConnectCallbackFunction;
     void* pConnectCallbackParameter;
 

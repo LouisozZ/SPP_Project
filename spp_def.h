@@ -101,7 +101,7 @@ typedef unsigned long long int  uint64_t;
 //帧长度
 //-----------------------
 //#define LLC_FRAME_MAX_LENGTH 30
-#define LLC_FRAME_MAX_LENGTH        18
+#define LLC_FRAME_MAX_LENGTH        11
 #define LLC_FRAME_MAX_DATA_LENGTH   (LLC_FRAME_MAX_LENGTH-4)
 #define MAC_FRAME_MAX_LENGTH        (LLC_FRAME_MAX_LENGTH+4+(LLC_FRAME_MAX_LENGTH/5))
 #define SINGLE_MESSAGE_MAX_LENGTH   256

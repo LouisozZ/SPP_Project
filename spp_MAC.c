@@ -120,7 +120,8 @@ tLLCInstance* MACFrameRead()
             nReadPosition = 0;
             if( (nReadBufferCount = ReadBytes(pReadBuffer, MAC_FRAME_MAX_LENGTH)) == 0)
             {
-               return NULL;
+                printf("\n未读到任何内容！\n");
+                return NULL;
             }
         }
         CDebugAssert(nReadBufferCount <= MAC_FRAME_MAX_LENGTH);
@@ -136,59 +137,59 @@ tLLCInstance* MACFrameRead()
         
         switch(nStatus)
         {
-        case MAC_FRAME_READ_STATUS_WAITING_HEADER:
-            CDebugAssert( nWritePosition == 0 );
-            //如果读到的第一个字节不是 HEADER_SOF 头
-            if( nByteValue != HEADER_SOF )
-            {
-                bError = true;
-            }
-            else     //如果读到的第一个字节是 HEADER_SOF 头，那么设置状态为等待字节，即等待有效载荷
-            {
-               nStatus = MAC_FRAME_READ_STATUS_WAITING_BYTE;
-            }
-            break;
-        case MAC_FRAME_READ_STATUS_WAITING_BYTE:
-            //在状态是等待有效载荷的情况下
-            if( nByteValue == HEADER_SOF )  // 在等待数据的 case 下，这时候要是有效载荷中出现了 MAC 帧头，则是错误
-            {
+            case MAC_FRAME_READ_STATUS_WAITING_HEADER:
+                CDebugAssert( nWritePosition == 0 );
+                //如果读到的第一个字节不是 HEADER_SOF 头
+                if( nByteValue != HEADER_SOF )
+                {
+                    bError = true;
+                }
+                else     //如果读到的第一个字节是 HEADER_SOF 头，那么设置状态为等待字节，即等待有效载荷
+                {
+                   nStatus = MAC_FRAME_READ_STATUS_WAITING_BYTE;
+                }
+                break;
+            case MAC_FRAME_READ_STATUS_WAITING_BYTE:
+                //在状态是等待有效载荷的情况下
+                if( nByteValue == HEADER_SOF )  // 在等待数据的 case 下，这时候要是有效载荷中出现了 MAC 帧头，则是错误
+                {
 #ifdef DEBUG_PRINTF
                 printf("\nnByteValue == HEADER_SOF\nbError occur\n");
 #endif
-                bError = true;
-            }
-            else if( nByteValue == TRAILER_EOF ) // TX 尾部
-            {                
-                if(nByteCount < 2)
-                {
-                   // To few data, error skip the frame 
+                    bError = true;
+                }
+                else if( nByteValue == TRAILER_EOF ) // TX 尾部
+                {                
+                    if(nByteCount < 2)
+                    {
+                    // To few data, error skip the frame 
 #ifdef DEBUG_PRINTF
                    printf("\nnByteCount < 2\nbError occur\n");
 #endif
-                   bError = true;
-                   break;
-                }
+                        bError = true;
+                        break;
+                    }
 
-                //如果正确处理了最后一帧，设置读状态机的状态为空闲
-                nStatus = MAC_FRAME_READ_STATUS_IDLE;                
-            }
-            else     //有效载荷数据
-            {
-                if(nWritePosition >= MAC_FRAME_MAX_LENGTH + 1)
+                    //如果正确处理了最后一帧，设置读状态机的状态为空闲
+                    nStatus = MAC_FRAME_READ_STATUS_IDLE;                
+                }
+                else     //有效载荷数据
                 {
-                   // 超过一个MAC帧的最大字节数，丢掉
+                    if(nWritePosition >= MAC_FRAME_MAX_LENGTH + 1)
+                    {
+                        // 超过一个MAC帧的最大字节数，丢掉
 #ifdef DEBUG_PRINTF
-                   printf("\nnWritePosition == MAC_FRAME_MAX_LENGTH + 1\nbError occur\n");
+                        printf("\nnWritePosition == MAC_FRAME_MAX_LENGTH + 1\nbError occur\n");
 #endif
-                    bError = true;
+                        bError = true;
+                    }
+                    else
+                    {
+                        g_sMACInstance->aMACReadBuffer[nWritePosition++] = nByteValue;                   
+                    }
                 }
-                else
-                {
-                    g_sMACInstance->aMACReadBuffer[nWritePosition++] = nByteValue;                   
-                }
-            }
-            break;
-        default:
+                break;
+            default:
             //PNALDebugError("static_PSHDLCFrameReadLoopRXTX: Wrong state");
             //CDebugAssert(false);
             return NULL;
@@ -224,7 +225,8 @@ tLLCInstance* MACFrameRead()
     if(!static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2)))
     {
         printf("\nbit error!\n");
-        MACFrameRead();
+        //MACFrameRead();
+        return NULL;
     }
     g_sMACInstance->nMACReadCRC = 0;
     for(int index = 0; index < *pDataRemovedZero + 1; index++)
@@ -243,7 +245,9 @@ tLLCInstance* MACFrameRead()
         }
         printf("\n");
 #endif
-        MACFrameRead();
+        //MACFrameRead();
+        printf("\nCRC error!\n");
+        return NULL;
     }
 
 #ifdef DEBUG_PRINTF
@@ -348,6 +352,10 @@ tLLCInstance* MACFrameRead()
                             pLLCInstance->bIsReadBufferFull = true;
                         }
                     }
+                    else
+                    {
+                        printf("\nmessage header is error!\n");
+                    }
 
                 }
                 else
@@ -370,6 +378,15 @@ tLLCInstance* MACFrameRead()
                 {
                     pLLCInstance->bIsFirstFregment = true;
                 }
+
+                //===========================================
+                //      更新相关的 ID 数据，及时响应发送方
+                //===========================================
+
+
+
+
+                //===========================================
             }   
         }//未知帧类型
         else 
@@ -377,6 +394,8 @@ tLLCInstance* MACFrameRead()
             printf("\nUnknown frame type!\n");
         }
     }
+    //产生了LLC ctrl 帧，所以调用一次写函数，把命令（响应）发送出去
+    MACFrameWrite();
     return pLLCInstance;
 }
 
@@ -489,19 +508,23 @@ uint8_t MACFrameWrite()
             pCtrlLLCHeader = (uint8_t*)CMALLOC(sizeof(uint8_t)*3);
             pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*6);   //SOF LEN + LLCCRTL [INSERTED ZERO] + CRC EOF
             *pCtrlLLCHeader = 0x01;
+            *(pCtrlLLCHeader + 1) = 0x00;
             switch(pLLCInstance->nNextCtrlFrameToSend)
             {
                 case READ_CTRL_FRAME_RNR:
                     *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_RNR;
                     *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                    pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
                     break;
                 case READ_CTRL_FRAME_ACK:
                     *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_ACK;
                     *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                    pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
                     break;
                 case READ_CTRL_FRAME_REJ:
                     *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_REJ;
                     *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                    pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
                     break;
                 case READ_CTRL_FRAME_UA:
                     *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_UA;
@@ -521,6 +544,7 @@ uint8_t MACFrameWrite()
         nCtrlFrameLength = nInsertedZeroFrameLength + 2;
 
         SPIWriteBytes(pLLCInstance,pCtrlFrameData,nCtrlFrameLength,1);
+        pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_NONE;
         return 0;
     }
 }
@@ -543,6 +567,10 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         //发送端把滑动窗口中的帧全重发。（接收端做重复对比？）
 #ifndef DEBUG_PRINTF
         printf("\nID error!\n");
+        printf("\nnWriteLastACKId : 0x%08x\n",nWriteLastACKId);
+        printf("\nnWriteNextWindowId : 0x%08x\n",nWriteNextWindowId);
+        printf("\nnReceivedId : 0x%08x\n",nReceivedId);
+
 #endif
         return false;
     }

@@ -129,6 +129,7 @@ uint8_t InitSPP()
     g_sSPPInstance->nConnectStatus = 0;
     g_sSPPInstance->nConnectNextFrameToSend = 0;
     g_sSPPInstance->nMessageLength = 0;
+    g_sSPPInstance->bIsMessageReady = false;
     g_sSPPInstance->pConnectCallbackFunction = NULL;
     g_sSPPInstance->pConnectCallbackParameter = NULL;
     g_sSPPInstance->pResetIndicationFunction = NULL;
