@@ -43,5 +43,5 @@ bool g_bIs_g_nAbsoluteTimeOverFlow;
 void MultiTimerInit();
 uint8_t SetTimer(uint8_t nTimerID,uint32_t nInterval,bool bIsSingleUse,TimeoutCallBack* pCallBackFunction,void* pCallBackParameter);
 uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode);
-
+void CancleAllTimerTask();
 #endif

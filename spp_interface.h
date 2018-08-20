@@ -6,7 +6,7 @@ typedef void SPPResetIndication();
 
 typedef struct tSPPInstance{
     uint8_t nConnectStatus;
-    uint8_t nConnectNextFrameToSend;
+    uint8_t nWindowSize;
     uint8_t nNextMessageHeader;
     uint8_t* pMessageBuffer;
     uint8_t nMessageLength;

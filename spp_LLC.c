@@ -6,7 +6,6 @@ uint8_t InitLLCInstance()
     {
         g_aLLCInstance[index] = (tLLCInstance*)CMALLOC(sizeof(tLLCInstance));
         CDebugAssert(g_aLLCInstance[index] != NULL);
-        static_AvoidCounterSpin(g_aLLCInstance[index]);
         //g_aLLCInstance[index]->aLLCReadBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*READ_BUFFER_SIZE);
         g_aLLCInstance[index]->nLLCReadReadPosition = 0;
         g_aLLCInstance[index]->nLLCReadWritePosition = 0;
@@ -19,7 +18,7 @@ uint8_t InitLLCInstance()
         g_aLLCInstance[index]->bIsFirstFregment = true;
 
         //写操作相关
-        g_aLLCInstance[index]->nWindowSize = 4;
+        g_aLLCInstance[index]->nWindowSize = g_sSPPInstance->nWindowSize;
         g_aLLCInstance[index]->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*SINGLE_MESSAGE_MAX_LENGTH);
         g_aLLCInstance[index]->nMessageLength = 1;
         g_aLLCInstance[index]->nWritePosition = 0;
@@ -36,6 +35,8 @@ uint8_t InitLLCInstance()
         //g_aLLCInstance[index]->sLLCFrameNextToSend.aLLCFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*LLC_FRAME_MAX_LENGTH);
         g_aLLCInstance[index]->sLLCFrameNextToSend.nLLCFrameLength = 0;
 
+        static_AvoidCounterSpin(g_aLLCInstance[index]);
+        
         for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
         {
             g_aLLCInstance[index]->aSlideWindow[nWindowNum] = (tMACWriteContext*)CMALLOC(sizeof(tMACWriteContext));

@@ -91,7 +91,12 @@ uint8_t SetTimer(uint8_t nTimerID,uint32_t nInterval,bool bIsSingleUse,TimeoutCa
     pChoosedTimer->nInterval = nInterval;
     pChoosedTimer->bIsSingleUse = bIsSingleUse;
     pChoosedTimer->pTimeoutCallbackfunction = pCallBackFunction;
-    pChoosedTimer->pTimeoutCallbackParameter = pCallBackParameter;    
+    pChoosedTimer->pTimeoutCallbackParameter = pCallBackParameter;
+
+    //如果超时任务链表中已经有这个任务了，先取消，然后再设置，即重置超时任务
+    if(pChoosedTimer->pNextTimer != NULL || pChoosedTimer->pPreTimer != NULL)
+        CancelTimerTask(nTimerID,CANCEL_MODE_IMMEDIATELY);
+        
     AddTimerToCheckList(pChoosedTimer);
     return 0;
 }
@@ -228,6 +233,32 @@ void SYSTimeoutHandler()
         g_bIs_g_nAbsoluteTimeOverFlow = !g_bIs_g_nAbsoluteTimeOverFlow;
     
     return ;
+}
+
+void CancleAllTimerTask()
+{
+    tSppMultiTimer* pEarliestTimer = NULL;
+    tSppMultiTimer* pHandleTimer = NULL;
+
+    while(g_pTimeoutCheckListHead != NULL)
+    {
+        pEarliestTimer = g_pTimeoutCheckListHead;
+        g_pTimeoutCheckListHead = g_pTimeoutCheckListHead->pNextTimer;
+
+        while(pEarliestTimer != NULL)
+        {
+            pHandleTimer = pEarliestTimer;
+            pEarliestTimer = pEarliestTimer->pNextHandle;
+
+            pHandleTimer->pNextHandle = NULL;
+            pHandleTimer->pNextTimer = NULL;
+            pHandleTimer->pPreTimer = NULL;
+            pHandleTimer->bIsOverflow = false;
+        }
+    }
+    g_bIs_g_nAbsoluteTimeOverFlow = false;
+    g_nAbsoluteTime = 0;
+    return;
 }
 
 void MultiTimerInit()

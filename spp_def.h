@@ -57,9 +57,11 @@ typedef unsigned long long int  uint64_t;
 #define CONNECT_STATU_DISCONNECTED                  0
 #define CONNECT_STATU_WAITING_LINK_CONFIRM          1
 #define CONNECT_STATU_WAITING_CONFIRM               2
-#define CONNECT_STATU_CONNECTED                     3
-#define CONNECT_STATU_WAITING_DISCONNECT_CONFIRM    4
-#define CONNECT_STATU_WAITING_RESET_CONFIRM         5
+#define CONNECT_STATU_WAITING_LLC_RESET             3
+#define CONNECT_STATU_WAITING_LLC_UA                4
+#define CONNECT_STATU_CONNECTED                     5
+#define CONNECT_STATU_WAITING_DISCONNECT_CONFIRM    6
+#define CONNECT_STATU_WAITING_RESET_CONFIRM         7
 
 //空闲帧
 #define CONNECT_IDLE                    0x00

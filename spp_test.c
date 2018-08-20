@@ -36,7 +36,10 @@ int main()
     //     printf("0x%02x ",removezero[i]);
 
     InitSPP();
-    SendMessage((void*)olddata);
+    // ConnectToMCU();
+    // Disconnect();
+    // ResetConnect();
+    //SendMessage((void*)olddata);
 
     // g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
     // LLCFrameWrite(NULL,0,0,false);
@@ -51,7 +54,7 @@ int main()
     //         g_aLLCInstance[0]->nNextCtrlFrameToSend = READ_CTRL_FRAME_RNR;
     // }
     printf("\n\n======================================================================\n\n");
-    for(int i = 0; i < 8; i++)
+    for(int i = 0; i < 3; i++)
     {
         pLLCInstance = MACFrameRead();
         //printf("g_aLLCInstance[0]->nLLCReadReadPosition : %d\n",g_aLLCInstance[0]->nLLCReadReadPosition);
@@ -76,6 +79,25 @@ int main()
         printf("0x%02x ",g_sSPPInstance->pMessageBuffer[index]);
     }
     printf("\n");
+
+    printf("\ng_sSPPInstance->nConnectStatus : 0x%02x\n",g_sSPPInstance->nConnectStatus);
+    printf("\n*****************************************************\n");
+    static_ResetLLC();
+    SendMessage((void*)olddata);
+
+    for(int i = 0; i < 2; i++)
+    {
+        pLLCInstance = MACFrameRead();
+        if(pLLCInstance != NULL)
+            LLCReadFrame(pLLCInstance);
+    }
+    printf("\ng_sSPPInstance->nMessageLength : %d\ng_sSPPInstance->pMessageBuffer : ",g_sSPPInstance->nMessageLength);
+    for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
+    {
+        printf("0x%02x ",g_sSPPInstance->pMessageBuffer[index]);
+    }
+    printf("\n");
+
 }
 
 // int cancelflag = 0;

@@ -38,5 +38,5 @@ uint8_t static_InsertZero(uint8_t* aMACReadBuffer,uint8_t* pNewBuffer,uint8_t nO
 bool CtrlFrameAcknowledge(uint8_t nCtrlFrame,tLLCInstance *pLLCInstance);
 uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame);
 uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance);
-
+uint8_t static_ResetLLC();
 #endif

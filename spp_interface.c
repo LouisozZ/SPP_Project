@@ -1,5 +1,31 @@
 #include "spp_global.h"
 
+static void Timer0_RequireConnectTimeout(void* pParameter)
+{
+    if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LINK_CONFIRM)
+    {
+        g_nReconnectTimes++;
+        ConnectToMCU();
+    }
+}
+
+static void Timer1_RequireDisConnectTimeout(void* pParameter)
+{
+    if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_DISCONNECT_CONFIRM)
+    {
+        Disconnect();
+        g_nReconnectTimes = 0;
+    }
+}
+
+static void Timer1_RequireResetConnectTimeout(void* pParameter)
+{
+    if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_RESET_CONFIRM)
+    {
+        g_nReconnectTimes++;
+        ResetConnect();
+    }
+}
 /**
  * @function    MPU向MCU发起建立连接请求
  * @description 建立连接的过程是三次握手，通过三次握手，双方都能知道双向数据传输是否联通
@@ -9,7 +35,17 @@
 */
 int ConnectToMCU()
 {
-
+    if(g_nReconnectTimes >= 5)
+    {
+        printf("\n\nConnect Timeout!\n\n");
+        return -1;
+    }
+    //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
+    g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
+    LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
+    g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LINK_CONFIRM;
+    SetTimer(TIMER_0_CONNECT,RESENT_CONNECT_REQUIRE_TIMEOUT,true,Timer0_RequireConnectTimeout,NULL);
+    return 0;
 }
 
 /**
@@ -20,7 +56,11 @@ int ConnectToMCU()
 */
 int Disconnect()
 {
-
+    g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_DISCONNECT;
+    LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
+    g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_DISCONNECT_CONFIRM;
+    SetTimer(TIMER_0_CONNECT,RESENT_DIS_RESET_CONNECT_TIMEOUT,true,Timer1_RequireDisConnectTimeout,NULL);
+    return 0;
 }
 
 /**
@@ -31,7 +71,11 @@ int Disconnect()
 */
 int ResetConnect()
 {
-
+    g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_RESET;
+    LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
+    g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_RESET_CONFIRM;
+    SetTimer(TIMER_0_CONNECT,RESENT_DIS_RESET_CONNECT_TIMEOUT,true,Timer1_RequireResetConnectTimeout,NULL);
+    return 0;
 }
 
 /**
@@ -91,6 +135,9 @@ uint8_t InitSPP()
     uint8_t index = 0;
     //版本信息的确定应该在连接建立的时候确定，暂时写在这里
     g_nVersion = VERSION_1_0;
+    
+
+    g_nReconnectTimes = 0;
 
     for(index = 0;index < MAX_TIMER_UPPER_LIMIT; index++)
     {
@@ -126,8 +173,8 @@ uint8_t InitSPP()
     //SPPInstance初始化
     g_sSPPInstance = (tSPPInstance*)CMALLOC(sizeof(tSPPInstance));
     g_sSPPInstance->pMessageBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*SINGLE_MESSAGE_MAX_LENGTH);
-    g_sSPPInstance->nConnectStatus = 0;
-    g_sSPPInstance->nConnectNextFrameToSend = 0;
+    g_sSPPInstance->nConnectStatus = CONNECT_STATU_DISCONNECTED;
+    g_sSPPInstance->nNextMessageHeader = CONNECT_IDLE;
     g_sSPPInstance->nMessageLength = 0;
     g_sSPPInstance->bIsMessageReady = false;
     g_sSPPInstance->pConnectCallbackFunction = NULL;
@@ -135,10 +182,13 @@ uint8_t InitSPP()
     g_sSPPInstance->pResetIndicationFunction = NULL;
     g_sSPPInstance->pResetIndicationFunctionParameter = NULL;
 
+    //窗口大小的确定应该通过配置文件来确定，暂时写在这里
+    g_sSPPInstance->nWindowSize = 4;
     //MAC初始化
     InitMACInstance();
     //LLC初始化
     InitLLCInstance();
+    MultiTimerInit();
 
     return 0;
 }

@@ -21,6 +21,98 @@ uint8_t InitMACInstance()
     return 1;
 }
 
+uint8_t static_ResetLLC()
+{
+    tLLCWriteContext* pWaitingToBeFreed = NULL;
+
+    g_sSPPInstance->nConnectStatus = CONNECT_STATU_DISCONNECTED;
+    g_sSPPInstance->nNextMessageHeader = CONNECT_IDLE;
+    g_sSPPInstance->nMessageLength = 0;
+    g_sSPPInstance->bIsMessageReady = false;
+    g_sSPPInstance->pConnectCallbackFunction = NULL;
+    g_sSPPInstance->pConnectCallbackParameter = NULL;
+    g_sSPPInstance->pResetIndicationFunction = NULL;
+    g_sSPPInstance->pResetIndicationFunctionParameter = NULL;
+
+    g_sMACInstance->nMACReadStatu = MAC_FRAME_READ_STATUS_IDLE;                                  //读状态机状态
+    g_sMACInstance->nMACReadFrameRemaining = 0;                         //未读字节流长度
+    g_sMACInstance->nMACReadPosition = 0;                               //上一个变量的读位置指针
+    g_sMACInstance->nMACReadCRC = 0;                                    //用于计算读到的MAC帧CRC值
+    g_sMACInstance->pMACReadCompletedCallback = NULL;
+    g_sMACInstance->nMACWriteStatu = 0;
+    g_sMACInstance->nMACWritePosition = 0;
+    g_sMACInstance->nMACWriteLength = 0;
+    g_sMACInstance->bIsWriteFramePending = false;
+
+    for(int index = 0; index < PRIORITY; index++)
+    {
+        g_aLLCInstance[index]->nLLCReadReadPosition = 0;
+        g_aLLCInstance[index]->nLLCReadWritePosition = 0;
+        g_aLLCInstance[index]->bIsReadBufferFull = false;
+        g_aLLCInstance[index]->nReadNextToReceivedFrameId = 0;
+        g_aLLCInstance[index]->nReadLastAcknowledgedFrameId = 0;
+        g_aLLCInstance[index]->nReadT1Timeout = 0;
+        g_aLLCInstance[index]->pReadHandler = NULL;
+        g_aLLCInstance[index]->pReadHandlerParameter = NULL;
+        g_aLLCInstance[index]->bIsFirstFregment = true;
+
+        //写操作相关
+        g_aLLCInstance[index]->nWindowSize = g_sSPPInstance->nWindowSize;
+        g_aLLCInstance[index]->nMessageLength = 1;
+        g_aLLCInstance[index]->nWritePosition = 0;
+        g_aLLCInstance[index]->bIsWriteWindowsFull = false;
+        g_aLLCInstance[index]->bIsWriteOtherSideReady = false;    
+        g_aLLCInstance[index]->bIsRRFrameAlreadySent = false;
+        g_aLLCInstance[index]->nNextCtrlFrameToSend = 0;
+        g_aLLCInstance[index]->pWriteHandler = NULL;
+        g_aLLCInstance[index]->pWriteHandlerParameter = NULL;
+
+        if(g_aLLCInstance[index]->pLLCFrameWriteListHead != NULL)
+        {
+            while(g_aLLCInstance[index]->pLLCFrameWriteListHead != NULL)
+            {
+                pWaitingToBeFreed = g_aLLCInstance[index]->pLLCFrameWriteListHead;
+                g_aLLCInstance[index]->pLLCFrameWriteListHead = g_aLLCInstance[index]->pLLCFrameWriteListHead->pNext;
+
+                CFREE(pWaitingToBeFreed->pFrameBuffer);
+                CFREE(pWaitingToBeFreed->pCallbackParameter);
+                CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
+                CFREE(pWaitingToBeFreed);
+            }
+        }
+        g_aLLCInstance[index]->pLLCFrameWriteListHead = NULL;
+
+        if(g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead != NULL)
+        {
+            while(g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead != NULL)
+            {
+                pWaitingToBeFreed = g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead;
+                g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead = g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead->pNext;
+
+                CFREE(pWaitingToBeFreed->pFrameBuffer);
+                CFREE(pWaitingToBeFreed->pCallbackParameter);
+                CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
+                CFREE(pWaitingToBeFreed);
+            }
+        }
+        g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead = NULL;
+
+        g_aLLCInstance[index]->sLLCFrameNextToSend.nLLCFrameLength = 0;
+
+        static_AvoidCounterSpin(g_aLLCInstance[index]);
+
+        for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
+        {
+            if(g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer != NULL)
+                CFREE(g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer);
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = NULL;
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->nFrameLength = 0;
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pNext = NULL;
+        }
+    }
+
+    return 0;
+}
 static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8_t n3bitValue )
 {
    uint32_t n32bitValue = pLLCInstance->nWriteLastAckSentFrameId;
@@ -90,6 +182,7 @@ tLLCInstance* MACFrameRead()
     uint8_t nLength = 0;
     uint8_t nPackageHeader = 0;
     uint8_t nMessageHeader = 0;
+    uint8_t nRecvedWindowSize = 0;
 
     uint8_t nCtrlHeader;
 
@@ -284,10 +377,17 @@ tLLCInstance* MACFrameRead()
 #endif
             }
             return pLLCInstance;
-        }
+        }//是reset帧
         else
         {
-            //RSET(*(pDataRemovedZero + 1));    *(pDataRemovedZero + 1) : window size
+            if(*(pDataRemovedZero + 1) > g_sSPPInstance->nWindowSize)
+            {
+                g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_RST;
+            }
+            else
+            {
+                g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_UA;
+            }
 #ifdef DEBUG_PRINTF
             printf("\n-------------->REST : window size : %d\n",*(pDataRemovedZero + 2));
             //return NULL;
@@ -301,6 +401,7 @@ tLLCInstance* MACFrameRead()
 #ifdef DEBUG_PRINTF
         printf("\n-------------->UA\n");
 #endif
+        static_ResetLLC();
     }    
     else
     {
@@ -495,7 +596,7 @@ uint8_t MACFrameWrite()
             
             *pCtrlLLCHeader = 0x02;
             *(pCtrlLLCHeader + 1) = LLC_FRAME_RST;
-            *(pCtrlLLCHeader + 2) = pLLCInstance->nWindowSize;
+            *(pCtrlLLCHeader + 2) = g_sSPPInstance->nWindowSize;
             nCRC = 0;
             for(uint8_t index = 0; index < 3; index++)
                 nCRC ^= *(pCtrlLLCHeader + index);
