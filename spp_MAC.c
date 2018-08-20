@@ -1,5 +1,21 @@
 #include "spp_global.h"
 
+static void Timer2_FinialResendTimeout(void *pParameter)
+{
+    tLLCInstance* pLLCInstance;
+    pLLCInstance = (tLLCInstance*)pParameter;
+    pLLCInstance->nWriteNextWindowFrameId = pLLCInstance->nWriteLastAckSentFrameId + 1;
+    return;
+}
+
+static void Timer3_ACKTimeout(void* pParameter)
+{
+    for(int index = 0; index < PRIORITY; index++)
+    {
+        g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
+    }
+    return;
+}
 uint8_t InitMACInstance()
 {
     g_sMACInstance = (tMACInstance*)CMALLOC(sizeof(tMACInstance));
@@ -380,6 +396,12 @@ tLLCInstance* MACFrameRead()
         }//是reset帧
         else
         {
+            if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_RESET)
+            {
+                g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+                SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+            }
+                
             if(*(pDataRemovedZero + 1) > g_sSPPInstance->nWindowSize)
             {
                 g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_RST;
@@ -401,6 +423,11 @@ tLLCInstance* MACFrameRead()
 #ifdef DEBUG_PRINTF
         printf("\n-------------->UA\n");
 #endif
+        if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
+        {
+            g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        }
         static_ResetLLC();
     }    
     else
@@ -584,6 +611,10 @@ uint8_t MACFrameWrite()
             pLLCInstance->bIsWriteWindowsFull = false;
 
         SPIWriteBytes(pLLCInstance,pSingleMACFrame->pFrameBuffer,pSingleMACFrame->nFrameLength,0);
+        if(pLLCInstance->bIsFirstFregment)//最后一片，设置重发超时
+        {
+            SetTimer(TIMER2_SENDTIMEOUT,RESEND_FINIAL_FRAME_TIMEOUT,true,Timer2_FinialResendTimeout,(void*)pLLCInstance);//RESEND_TIMEOUT
+        }
         return 0;
     }//控制帧优先级最高，直接发送
     else

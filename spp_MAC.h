@@ -3,6 +3,11 @@
 #include "spp_def.h"
 #include "spp_LLC.h"
 
+#define TIMER2_SENDTIMEOUT TIMER_2
+#define RESEND_FINIAL_FRAME_TIMEOUT 1000
+
+#define TIMER3_ACK_TIMEOUT TIMER_3
+#define SEND_ACK_TIMEOUT    500
 //typedef void MACFrameReadCompleted(tLLCInstance* pLLCInstance, uint8_t* pLLCFrame,uint8_t nLLCFrameLength);
 typedef void MACFrameReadCompleted(tLLCInstance* pLLCInstance);
 
