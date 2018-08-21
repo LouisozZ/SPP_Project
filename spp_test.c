@@ -1,5 +1,6 @@
 #include "spp_global.h"
 
+#include "sys/time.h"
 #include "pthread.h"
 
 #if SERVICE_CODE
@@ -71,7 +72,8 @@ int main()
         printf("\nwhen init lock error occur!\n");
         return;
     }
-        
+
+    
 
     int err;
     err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);

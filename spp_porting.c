@@ -34,15 +34,31 @@ uint8_t CFREE(void* pFreeAddress)
 void* MultiTimer_thread(void *parameter)
 {
     printf("\nthis is timer thread!\n");
-    signal(SIGALRM,SYSTimeoutHandler);
+    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    {
+        printf("\nwhen set timeout handler the error occur!\n");
+        return ((void*)0);
+    }
 
     struct itimerval new_time_value,old_time_value;
     new_time_value.it_interval.tv_sec = 0;
     new_time_value.it_interval.tv_usec = 1000;
     new_time_value.it_value.tv_sec = 0;
-    new_time_value.it_value.tv_usec = 10;
+    new_time_value.it_value.tv_usec = 1;
 
-    for(;;);
+    setitimer(ITIMER_REAL, &new_time_value, NULL);
+
+    for(;;)
+    {
+        pause();
+        
+        // setitimer(ITIMER_REAL, &new_time_value, NULL);
+        // if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+        // {
+        //     printf("\nwhen set timeout handler the error occur!\n");
+        //     return ((void*)0);
+        // }
+    }
 
     return ((void*)0);
 }

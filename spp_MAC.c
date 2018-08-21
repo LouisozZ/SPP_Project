@@ -2,6 +2,7 @@
 
 static void Timer2_FinialResendTimeout(void *pParameter)
 {
+    printf("\ntimer2 timeout\n");
     tLLCInstance* pLLCInstance;
     pLLCInstance = (tLLCInstance*)pParameter;
     pLLCInstance->nWriteNextWindowFrameId = pLLCInstance->nWriteLastAckSentFrameId + 1;

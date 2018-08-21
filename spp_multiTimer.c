@@ -202,6 +202,7 @@ uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
 */
 void SYSTimeoutHandler(int signo)
 {
+    printf("\nenter SYSTimeoutHandler\n");
     if(signo != SIGALRM)
         return;
     tSppMultiTimer* pEarliestTimer = NULL;
