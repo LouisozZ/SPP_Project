@@ -86,6 +86,7 @@ static void AddTimerToCheckList(tSppMultiTimer* pTimer)
 */
 uint8_t SetTimer(uint8_t nTimerID,uint32_t nInterval,bool bIsSingleUse,TimeoutCallBack* pCallBackFunction,void* pCallBackParameter)
 {
+    printf("\nset timer %d\n",nTimerID);
     tSppMultiTimer* pChoosedTimer = NULL;
     pChoosedTimer = g_aSPPMultiTimer[nTimerID];
     pChoosedTimer->nInterval = nInterval;
@@ -109,6 +110,7 @@ uint8_t SetTimer(uint8_t nTimerID,uint32_t nInterval,bool bIsSingleUse,TimeoutCa
 */
 uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
 {
+    printf("\ncancle timer %d\n",nTimerID);
     tSppMultiTimer* pEarliestTimer = NULL;
     tSppMultiTimer* pHandleTimer = NULL;
     tSppMultiTimer* pHandleTimer_pre = NULL;
