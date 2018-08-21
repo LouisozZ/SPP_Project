@@ -331,7 +331,7 @@ tLLCInstance* MACFrameRead()
     //把执行了插 0 操作的 LLC 帧复原，然后根据优先级字段选择合适的处理实体。
     pDataRemovedZero = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nByteCount - 2));
 
-    if(!static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2)))
+    if((nLength = static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2))) == 0)
     {
         printf("\nbit error!\n");
         //MACFrameRead();
@@ -359,14 +359,14 @@ tLLCInstance* MACFrameRead()
         return NULL;
     }
 
-#ifdef DEBUG_PRINTF
-    printf("\ng_sMACInstance->aMACReadBuffer : ");
-    for(int index = 0; index < nCRC; index++)
-        printf("0x%02x ",g_sMACInstance->aMACReadBuffer[index]);
-    printf("\n");
+#ifndef DEBUG_PRINTF
+    // printf("\ng_sMACInstance->aMACReadBuffer : ");
+    // for(int index = 0; index < nCRC; index++)
+    //     printf("0x%02x ",g_sMACInstance->aMACReadBuffer[index]);
+    // printf("\n");
 
     printf("\npDataRemovedZero : ");
-    for(int index = 0; index < nCRC; index++)
+    for(int index = 0; index < nLength; index++)
         printf("0x%02x ",*(pDataRemovedZero + index));
     printf("\n");
 #endif

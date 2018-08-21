@@ -3,6 +3,7 @@
 #include "unistd.h"
 #include "sys/time.h"
 #include "sys/socket.h"
+#include "netinet/in.h"
 #include "arpa/inet.h"
 #include "pthread.h"
 #include "memory.h"
@@ -54,7 +55,8 @@ void* SendData_thread(void *parameter)
     g_client_sock = socket(AF_INET,SOCK_STREAM,0);
 
     memset(&service_address,0,sizeof(service_address));
-    service_address.sin_addr.s_addr = inet_addr(DISTINATION_IP_ADDRESS);
+    //service_address.sin_addr.s_addr = inet_addr(DISTINATION_IP_ADDRESS);
+    inet_pton(AF_INET,DISTINATION_IP_ADDRESS,&service_address.sin_addr);
     service_address.sin_family = AF_INET;
     service_address.sin_port = htons(DISTINATION_IP_PORT);
 
@@ -77,15 +79,15 @@ void* RecvData_thread(void *parameter)
     memset(&service_address,0,sizeof(service_address));
     service_address.sin_addr.s_addr = inet_addr(LOCAL_IP_ADDRESS);
     service_address.sin_family = AF_INET;
-    service_address.sin_port = LOCAL_IP_PORT;
+    service_address.sin_port = htons(LOCAL_IP_PORT);
 
     bind(g_service_sock,(struct sockaddr*)&service_address,sizeof(service_address));
     listen(g_service_sock,128);
     socklen_t client_add_len = sizeof(client_address);
-    g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&client_address,&client_add_len);
 
     while(1)
     {
+        g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&client_address,&client_add_len);
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
             LLCReadFrame(pLLCInstance);
@@ -128,18 +130,27 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
 // #endif
     int nReadBytes = 0;
     nReadBytes = recv(g_service_communicate_fd,(void*)pBuffer,nReadLength,0);
+    
     if(nReadBytes <= 0)
         return 0;
     else
+    {
+        printf("\nrecv data as flow : \n");
+        for(int index = 0;index < nReadBytes; index++)
+        {
+            printf("0x%02x ",*(uint8_t*)(pBuffer+index));
+        }
+        printf("\n");
         return nReadBytes;
+    }
 }
 
 uint8_t SPI_SEND_BYTES(uint8_t* pData,uint8_t nLength)
 {
-    // printf("\n-------- send bytes as flow ----------\n\n");
-    // for(int index = 0; index < nLength; index++)
-    //     printf("0x%02x ",*(pData+index));
-    // printf("\n\n--------------------------------------\n");
+    printf("\n-------- send bytes as flow ----------\n\n");
+    for(int index = 0; index < nLength; index++)
+        printf("0x%02x ",*(pData+index));
+    printf("\n\n--------------------------------------\n");
     send(g_client_sock,(void*)pData,nLength,0);
 }
 

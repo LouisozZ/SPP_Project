@@ -2,6 +2,8 @@
 
 #include "pthread.h"
 
+#if SERVICE_CODE
+//服务器端，接受数据线程
 void* User_Thread(void* parameter)
 {
     printf("\nthis is user thread!\n");
@@ -10,6 +12,8 @@ void* User_Thread(void* parameter)
     tMessageStruct* pRecvedMessage;
     while(1)
     {
+        if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
+            continue;
         if(RecvMessage(pRecvedData,&nRecvedDataLen))
         {
             pRecvedMessage = (tMessageStruct*)CMALLOC(sizeof(uint8_t)*nRecvedDataLen);
@@ -27,6 +31,37 @@ void* User_Thread(void* parameter)
         }
     }
 }
+#else
+//客户端发送数据线程
+void* User_Thread(void* parameter)
+{
+    printf("\nthis is user thread!\n");
+    void *pSendData;
+    uint32_t nSendDataLen;
+    tMessageStruct* pSendMessage;
+
+    ConnectToMCU();
+
+    while(1)
+    {
+        if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
+            continue;
+        else 
+            break;
+    }
+    {
+        nSendDataLen = 9;
+        pSendMessage->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*9);
+        pSendMessage->nMessagelen = sizeof(pSendMessage);
+        pSendMessage->nMessagePriority = 3;
+        for(int index = 0;index < nSendDataLen;index++)
+        {
+            *(uint8_t*)(pSendMessage->pMessageData + index) = 0x00+index;
+        }
+        SendMessage((void*)pSendMessage);
+    }
+}
+#endif
 
 int main()
 {
@@ -66,9 +101,6 @@ int main()
         printf("\nCan't create multi timer thread!\n");
         return 0;
     }
-    
-    ConnectToMCU();
-
 
     pthread_join(nTimerThread,NULL);
     pthread_join(nSendThread,NULL);

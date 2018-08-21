@@ -5,11 +5,20 @@
 
 #define CDebugAssert(value) if(!(value)){printf("\n%s is not true!\nreturn...\n",#value);return;}
 
+#if SERVICE_CODE
 #define LOCAL_IP_ADDRESS "192.168.149.128"
 #define LOCAL_IP_PORT 5555
 
-#define DISTINATION_IP_ADDRESS ""
+#define DISTINATION_IP_ADDRESS "192.168.149.129"
 #define DISTINATION_IP_PORT 4444
+
+#else 
+#define LOCAL_IP_ADDRESS "192.168.149.129"
+#define LOCAL_IP_PORT 4444
+
+#define DISTINATION_IP_ADDRESS "192.168.149.128"
+#define DISTINATION_IP_PORT 5555
+#endif
 
 extern pthread_t nTimerThread;
 extern pthread_t nRecvThread;
