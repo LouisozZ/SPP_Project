@@ -549,7 +549,7 @@ uint8_t MACFrameWrite()
     }
     if(pLLCInstance == NULL)
     {
-        printf("\nthere is no frame to send!\n");
+        //printf("\nthere is no frame to send!\n");
         return 0;
     }
     //滑动窗口是否满了

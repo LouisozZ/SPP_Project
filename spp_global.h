@@ -4,6 +4,8 @@
 #include "spp_def.h"
 #include "spp_include.h"
 
+#include "signal.h"
+
 uint8_t g_nVersion;
 uint32_t g_nAbsoluteTime;
 uint8_t g_nReconnectTimes;

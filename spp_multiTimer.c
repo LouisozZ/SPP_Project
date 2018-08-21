@@ -198,8 +198,10 @@ uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
  * @parameter   
  * @return
 */
-void SYSTimeoutHandler()
+void SYSTimeoutHandler(int signo)
 {
+    if(signo != SIGALRM)
+        return;
     tSppMultiTimer* pEarliestTimer = NULL;
     tSppMultiTimer* pWaitingToHandle = NULL;
     tSppMultiTimer* pEarliestTimerPreHandle = NULL;
@@ -281,4 +283,6 @@ void MultiTimerInit()
         g_aSPPMultiTimer[index]->pNextHandle = NULL;
     }
     /*  如果预先规定了一些定时器，这个时候可以初始化除时间戳以外的其他值  */
+    //开启应答超时任务
+    //OPEN_MULTITIMER_MANGMENT();
 }

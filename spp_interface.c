@@ -89,11 +89,14 @@ int SendMessage(void* pSendMessage)
     uint32_t nMessageLength;
     uint8_t nMessagePriority;
     uint32_t nSentBytes;
+    tMessageStruct* pSendMessageWithStruct;
+
+    pSendMessageWithStruct = (tMessageStruct*)pSendMessage;
 
     // nMessageLength = *(uint32_t*)(pSendMessage + 1);
     // nMessagePriority = *(uint8_t*)(pSendMessage);
-    nMessageLength = 19;
-    nMessagePriority = 0;
+    nMessageLength = pSendMessageWithStruct->nMessagelen;
+    nMessagePriority = pSendMessageWithStruct->nMessagePriority;
 
     g_sSPPInstance->nNextMessageHeader = CONNECT_SEND_RECV_MESSAGE;
 
@@ -111,22 +114,32 @@ int SendMessage(void* pSendMessage)
 */
 int RecvMessage(void* pDataAddress,uint32_t* pMessageLength)
 {
-    tLLCInstance* pLLCInstance;
+    // tLLCInstance* pLLCInstance;
 
-    for(int nPriority = 0; nPriority < PRIORITY; nPriority++)
-    {
-        pLLCInstance = g_aLLCInstance[nPriority];
-        if((pLLCInstance->nMessageLength != 0) && (pLLCInstance->bIsWaitingLastFragment == false))
-        {
-            *pMessageLength = pLLCInstance->nMessageLength;
-            for(int index = 0; index < pLLCInstance->nMessageLength; index++)
-            {
-                *((uint8_t*)pDataAddress++) = *(g_sSPPInstance->pMessageBuffer + index);
-            }
-            return *(int*)(pDataAddress+4);//return the type field
-        }
-    }
-    return 0;//没有收到任何消息
+    // for(int nPriority = 0; nPriority < PRIORITY; nPriority++)
+    // {
+    //     pLLCInstance = g_aLLCInstance[nPriority];
+    //     if((pLLCInstance->nMessageLength != 0) && (pLLCInstance->bIsWaitingLastFragment == false))
+    //     {
+    //         *pMessageLength = pLLCInstance->nMessageLength;
+    //         for(int index = 0; index < pLLCInstance->nMessageLength; index++)
+    //         {
+    //             *((uint8_t*)pDataAddress++) = *(g_sSPPInstance->pMessageBuffer + index);
+    //         }
+    //         return *(int*)(pDataAddress+4);//return the type field
+    //     }
+    // }
+    // return 0;//没有收到任何消息
+    while(g_sSPPInstance->bIsMessageReady != true);
+    *pMessageLength = g_sSPPInstance->nMessageLength;
+    pDataAddress = g_sSPPInstance->pMessageBuffer;
+    // for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
+    // {
+    //     *((uint8_t*)pDataAddress++) = *(g_sSPPInstance->pMessageBuffer + index);
+    // }
+    //return *(int*)(pDataAddress+4);//return the type field
+    return 1;
+
 }
 
 uint8_t InitSPP()

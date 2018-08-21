@@ -1,8 +1,27 @@
 #ifndef __SPP_PORTING_H__
 #define __SPP_PORTING_H__
 
+#include "pthread.h"
+
 #define CDebugAssert(value) if(!(value)){printf("\n%s is not true!\nreturn...\n",#value);return;}
 
+#define LOCAL_IP_ADDRESS "192.168.149.128"
+#define LOCAL_IP_PORT 5555
+
+#define DISTINATION_IP_ADDRESS ""
+#define DISTINATION_IP_PORT 4444
+
+extern pthread_t nTimerThread;
+extern pthread_t nRecvThread;
+extern pthread_t nSendThread;
+extern pthread_t nUserThread;
+
+typedef struct tMessageStruct
+{
+    uint32_t nMessagelen;
+    uint8_t nMessagePriority;
+    uint8_t* pMessageData;
+}tMessageStruct;
 /**
  * @function    调用底层SPI的读函数读取字节
  * @description 
@@ -12,5 +31,11 @@
 uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength);
 void* CMALLOC(uint32_t length);
 uint8_t CFREE(void* pFreeAddress);
+uint8_t OPEN_MULTITIMER_MANGMENT();
+
+void* MultiTimer_thread(void *parameter);
+void* SendData_thread(void *parameter);
+void* RecvData_thread(void *parameter);
+
 
 #endif

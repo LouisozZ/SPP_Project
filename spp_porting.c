@@ -1,5 +1,95 @@
 #include "spp_global.h"
 
+#include "unistd.h"
+#include "sys/time.h"
+#include "sys/socket.h"
+#include "arpa/inet.h"
+#include "pthread.h"
+#include "memory.h"
+
+pthread_t nTimerThread;
+pthread_t nRecvThread;
+pthread_t nSendThread;
+pthread_t nUserThread;
+
+int g_service_sock;
+int g_service_communicate_fd;
+int g_client_sock;
+
+void* CMALLOC(uint32_t length)
+{
+    return (void*)malloc(length);
+}
+
+uint8_t CFREE(void* pFreeAddress)
+{
+    free(pFreeAddress);
+    return 1;
+}
+
+//定时器线程，每一毫秒执行一次软中断函数，这个中断函数是自己的多定时器管理函数，所以在设置定时器超时宏定义的时候，值的单位是 ms
+void* MultiTimer_thread(void *parameter)
+{
+    printf("\nthis is timer thread!\n");
+    signal(SIGALRM,SYSTimeoutHandler);
+
+    struct itimerval new_time_value,old_time_value;
+    new_time_value.it_interval.tv_sec = 0;
+    new_time_value.it_interval.tv_usec = 1000;
+    new_time_value.it_value.tv_sec = 0;
+    new_time_value.it_value.tv_usec = 10;
+
+    for(;;);
+
+    return ((void*)0);
+}
+
+void* SendData_thread(void *parameter)
+{
+    printf("\nthis is send thread!\n");
+    struct sockaddr_in service_address;
+
+    g_client_sock = socket(AF_INET,SOCK_STREAM,0);
+
+    memset(&service_address,0,sizeof(service_address));
+    service_address.sin_addr.s_addr = inet_addr(DISTINATION_IP_ADDRESS);
+    service_address.sin_family = AF_INET;
+    service_address.sin_port = htons(DISTINATION_IP_PORT);
+
+    connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
+    while(1)
+    {
+        MACFrameWrite();
+    }
+    
+}
+
+void* RecvData_thread(void *parameter)
+{
+    printf("\nthis is recv thread!\n");
+    struct sockaddr_in service_address,client_address;
+    tLLCInstance *pLLCInstance;
+    //int service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+    g_service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+
+    memset(&service_address,0,sizeof(service_address));
+    service_address.sin_addr.s_addr = inet_addr(LOCAL_IP_ADDRESS);
+    service_address.sin_family = AF_INET;
+    service_address.sin_port = LOCAL_IP_PORT;
+
+    bind(g_service_sock,(struct sockaddr*)&service_address,sizeof(service_address));
+    listen(g_service_sock,128);
+    socklen_t client_add_len = sizeof(client_address);
+    g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&client_address,&client_add_len);
+
+    while(1)
+    {
+        pLLCInstance = MACFrameRead();
+        if(pLLCInstance != NULL)
+            LLCReadFrame(pLLCInstance);
+    }
+}
+
 #ifdef TEST_MAIN
 
 int return_count = 0;
@@ -23,36 +113,42 @@ uint8_t* aDataArr[7] = {aData1,aData2,aData3,aData4,aData5,aData6,aData7};
 */
 uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
 {
-    if(return_count >= 7)
+//     if(return_count >= 7)
+//         return 0;
+//     uint8_t* pTargetArr;
+//     pTargetArr = aDataArr[return_count];
+//     return_count++;
+
+// #ifdef TEST_MAIN
+//     for(int i = 0; i < 16; i++)
+//         *pBuffer++ = *pTargetArr++;
+//     return 16;
+// #endif
+    int nReadBytes = 0;
+    nReadBytes = recv(g_service_communicate_fd,(void*)pBuffer,nReadLength,0);
+    if(nReadBytes <= 0)
         return 0;
-    uint8_t* pTargetArr;
-    pTargetArr = aDataArr[return_count];
-    return_count++;
-
-#ifdef TEST_MAIN
-    for(int i = 0; i < 16; i++)
-        *pBuffer++ = *pTargetArr++;
-    return 16;
-#endif
-
-    return 0;
+    else
+        return nReadBytes;
 }
 
 uint8_t SPI_SEND_BYTES(uint8_t* pData,uint8_t nLength)
 {
-    printf("\n-------- send bytes as flow ----------\n\n");
-    for(int index = 0; index < nLength; index++)
-        printf("0x%02x ",*(pData+index));
-    printf("\n\n--------------------------------------\n");
+    // printf("\n-------- send bytes as flow ----------\n\n");
+    // for(int index = 0; index < nLength; index++)
+    //     printf("0x%02x ",*(pData+index));
+    // printf("\n\n--------------------------------------\n");
+    send(g_client_sock,(void*)pData,nLength,0);
 }
 
-void* CMALLOC(uint32_t length)
+uint8_t OPEN_MULTITIMER_MANGMENT()
 {
-    return (void*)malloc(length);
-}
-
-uint8_t CFREE(void* pFreeAddress)
-{
-    free(pFreeAddress);
+    int err;
+    err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
+    if(err != 0)
+    {
+        printf("\nCan't create multi timer thread!\n");
+        return 0;
+    }
     return 1;
 }

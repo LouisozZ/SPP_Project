@@ -24,12 +24,13 @@ typedef unsigned short int      uint16_t;
 typedef unsigned int            uint32_t;  
 #define __uint32_t_defined  
 #endif  
-#if __WORDSIZE == 64  
-typedef unsigned long int       uint64_t;  
-#else  
-//__extension__  
-typedef unsigned long long int  uint64_t;  
-#endif 
+
+// #if __WORDSIZE == 64  
+// typedef unsigned long int       uint64_t;  
+// #else  
+// __extension__  
+// typedef unsigned long long int  uint64_t;  
+// #endif 
 
 #define tMACWriteContext tLLCWriteContext
 //******************************  变量类型定义  ****************************************
@@ -117,7 +118,7 @@ typedef unsigned long long int  uint64_t;
 //版本定义
 //-----------------------
 
-//  package header  +****---        说明：  +：CB位，分片信息     ****：版本信息，占用四位    ---：优先级，占用三位
+//  package header  +#***---        说明：  +：CB位，分片信息     #：connect 控制帧     ***：版本信息，占用三位    ---：优先级，占用三位
 #define VERSION_FIELD_MASK  0x38
 
 #define VERSION_1_0         0x08
