@@ -15,6 +15,7 @@ extern pthread_t nTimerThread;
 extern pthread_t nRecvThread;
 extern pthread_t nSendThread;
 extern pthread_t nUserThread;
+extern pthread_mutex_t nWtirelist;
 
 typedef struct tMessageStruct
 {
@@ -32,6 +33,10 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength);
 void* CMALLOC(uint32_t length);
 uint8_t CFREE(void* pFreeAddress);
 uint8_t OPEN_MULTITIMER_MANGMENT();
+
+void UNLOCK_WRITE();
+void LOCK_WRITE();
+uint8_t INIT_LOCK();
 
 void* MultiTimer_thread(void *parameter);
 void* SendData_thread(void *parameter);

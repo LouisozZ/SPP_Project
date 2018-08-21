@@ -776,8 +776,11 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
 
     tMACWriteContext* pPreWriteContext;
 
+    LOCK_WRITE();
+
     if(pWriteContext == NULL)
     {
+        UNLOCK_WRITE();
         return 0;
     }
     else
@@ -799,8 +802,11 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
             CFREE((void*)(pWriteContext));
             pPreWriteContext->pNext = NULL;
         }
+        UNLOCK_WRITE();
+
         return 1;
     }
+
 }
 
 uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferRemovedZero,uint8_t nLengthInsteredZero)

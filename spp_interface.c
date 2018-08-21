@@ -133,6 +133,8 @@ int RecvMessage(void* pDataAddress,uint32_t* pMessageLength)
     while(g_sSPPInstance->bIsMessageReady != true);
     *pMessageLength = g_sSPPInstance->nMessageLength;
     pDataAddress = g_sSPPInstance->pMessageBuffer;
+    g_sSPPInstance->bIsMessageReady = false;
+    g_sSPPInstance->nMessageLength = 0;
     // for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
     // {
     //     *((uint8_t*)pDataAddress++) = *(g_sSPPInstance->pMessageBuffer + index);

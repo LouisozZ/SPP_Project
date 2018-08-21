@@ -74,12 +74,15 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
 
     pListHead = &(pLLCInstance->pLLCFrameWriteListHead);
 
+    LOCK_WRITE();
+
     //加入到链表末尾
     if(!bIsAddToHead)
     {
         if ( *pListHead == NULL)
         {
             *pListHead = pWriteContext;
+            UNLOCK_WRITE();
             return 1;
         }
 
@@ -93,10 +96,14 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
     {
         pTempNode = *pListHead;
         //##加锁
+        
         *pListHead = pWriteContext;
         (*pListHead)->pNext = pTempNode;
+        
         //##解锁
     }
+
+    UNLOCK_WRITE();
 
     return 1;
 }
@@ -116,12 +123,14 @@ uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWr
 
     pListHead = &(pLLCInstance->pLLCFrameWriteCompletedListHead);
 
+    LOCK_WRITE();
     //加入到链表末尾
     if(!bIsAddToHead)
     {
         if ( *pListHead == NULL)
         {
             *pListHead = pWriteContext;
+            UNLOCK_WRITE();
             return 1;
         }
 
@@ -138,6 +147,7 @@ uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWr
         (*pListHead)->pNext = pTempNode;
     }
 
+    UNLOCK_WRITE();
     return 1;
 }
 

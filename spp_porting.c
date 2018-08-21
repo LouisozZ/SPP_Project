@@ -12,6 +12,8 @@ pthread_t nRecvThread;
 pthread_t nSendThread;
 pthread_t nUserThread;
 
+pthread_mutex_t nWtirelist;
+
 int g_service_sock;
 int g_service_communicate_fd;
 int g_client_sock;
@@ -151,4 +153,23 @@ uint8_t OPEN_MULTITIMER_MANGMENT()
         return 0;
     }
     return 1;
+}
+
+uint8_t INIT_LOCK()
+{
+    if(pthread_mutex_init(&nWtirelist,NULL) != NULL)
+        return 0;
+    return 1;
+}
+
+void LOCK_WRITE()
+{
+    pthread_mutex_lock(&nWtirelist);
+    return;
+}
+
+void UNLOCK_WRITE()
+{
+    pthread_mutex_unlock(&nWtirelist);
+    return;
 }

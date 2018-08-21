@@ -31,6 +31,12 @@ void* User_Thread(void* parameter)
 int main()
 {
     InitSPP();
+    if(!INIT_LOCK())
+    {
+        printf("\nwhen init lock error occur!\n");
+        return;
+    }
+        
 
     int err;
     err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
