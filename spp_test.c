@@ -31,7 +31,7 @@ void* User_Thread(void* parameter)
                 *(uint8_t*)(pRecvedMessage + index) = *(uint8_t*)(pRecvedData + index);
             }
             printf("\npriority : 0x%02x\nlength : 0x%02x",pRecvedMessage->nMessagePriority,pRecvedMessage->nMessagelen);
-            if(*(pRecvedMessage->pMessageData) == 0x18)
+            if(*(pRecvedMessage->pMessageData) == 0x00)
             {
                 SendMessage((void*)pRecvedMessage);
             }
@@ -54,6 +54,7 @@ void* User_Thread(void* parameter)
     void *pSendData;
     uint32_t nSendDataLen;
     tMessageStruct* pSendMessage;
+    uint32_t nWaiting = 1;
 
     ConnectToMCU();
 
@@ -62,7 +63,13 @@ void* User_Thread(void* parameter)
         //printf("\nclient loop\n");
 
         if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
+        {
+            nWaiting++;
+            if(nWaiting == 0)
+                ConnectToMCU();
             continue;
+        }
+            
         else 
             break;
     }
