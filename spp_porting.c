@@ -72,6 +72,12 @@ void* SendData_thread(void *parameter)
         return ((void*)0);
     }
 
+    struct itimerval new_time_value,old_time_value;
+    new_time_value.it_interval.tv_sec = 0;
+    new_time_value.it_interval.tv_usec = 0;
+    new_time_value.it_value.tv_sec = 3;
+    new_time_value.it_value.tv_usec = 0;
+
     struct sockaddr_in service_address;
 
     g_client_sock = socket(AF_INET,SOCK_STREAM,0);
@@ -82,7 +88,11 @@ void* SendData_thread(void *parameter)
     service_address.sin_family = AF_INET;
     service_address.sin_port = htons(DISTINATION_IP_PORT);
 
-    connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
+    while(!connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address)))
+    {
+        setitimer(ITIMER_REAL, &new_time_value, NULL);
+        pause();
+    }
     while(1)
     {
         MACFrameWrite();

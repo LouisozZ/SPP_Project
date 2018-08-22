@@ -93,21 +93,9 @@ int main()
     
 
     int err;
-    err = pthread_create(&nSendThread,NULL,SendData_thread,NULL);
-    if(err != 0)
-    {
-        printf("\nCan't create multi timer thread!\n");
-        return 0;
-    }
+    
 
     err = pthread_create(&nRecvThread,NULL,RecvData_thread,NULL);
-    if(err != 0)
-    {
-        printf("\nCan't create multi timer thread!\n");
-        return 0;
-    }
-
-    err = pthread_create(&nUserThread,NULL,User_Thread,NULL);
     if(err != 0)
     {
         printf("\nCan't create multi timer thread!\n");
@@ -123,7 +111,19 @@ int main()
     setitimer(ITIMER_REAL, &new_time_value, NULL);
     pause();
 
+    err = pthread_create(&nSendThread,NULL,SendData_thread,NULL);
+    if(err != 0)
+    {
+        printf("\nCan't create multi timer thread!\n");
+        return 0;
+    }
     err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
+    if(err != 0)
+    {
+        printf("\nCan't create multi timer thread!\n");
+        return 0;
+    }
+    err = pthread_create(&nUserThread,NULL,User_Thread,NULL);
     if(err != 0)
     {
         printf("\nCan't create multi timer thread!\n");
