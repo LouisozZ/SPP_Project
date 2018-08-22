@@ -58,7 +58,7 @@ int SendMessage();
  * @parameter   
  * @return      错误码
 */
-int RecvMessage(void* pDataAddress,uint32_t* pMessageLength);
+int RecvMessage(void** pDataAddress,uint32_t* pMessageLength);
 
 uint8_t InitSPP();
 

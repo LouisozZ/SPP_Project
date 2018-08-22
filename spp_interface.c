@@ -114,7 +114,7 @@ int SendMessage(void* pSendMessage)
  * @parameter   
  * @return      错误码
 */
-int RecvMessage(void* pDataAddress,uint32_t* pMessageLength)
+int RecvMessage(void** pDataAddress,uint32_t* pMessageLength)
 {
     // tLLCInstance* pLLCInstance;
 
@@ -134,7 +134,7 @@ int RecvMessage(void* pDataAddress,uint32_t* pMessageLength)
     // return 0;//没有收到任何消息
     while(g_sSPPInstance->bIsMessageReady != true);
     *pMessageLength = g_sSPPInstance->nMessageLength;
-    pDataAddress = g_sSPPInstance->pMessageBuffer;
+    *pDataAddress = g_sSPPInstance->pMessageBuffer;
     g_sSPPInstance->bIsMessageReady = false;
     g_sSPPInstance->nMessageLength = 0;
     // for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)

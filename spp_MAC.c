@@ -91,14 +91,33 @@ uint8_t static_ResetLLC()
             {
                 pWaitingToBeFreed = g_aLLCInstance[index]->pLLCFrameWriteListHead;
                 g_aLLCInstance[index]->pLLCFrameWriteListHead = g_aLLCInstance[index]->pLLCFrameWriteListHead->pNext;
-                printf("\nCFREE(pWaitingToBeFreed->pFrameBuffer)\n");
-                CFREE(pWaitingToBeFreed->pFrameBuffer);
-                printf("\nCFREE(pWaitingToBeFreed->pCallbackParameter)\n");
-                CFREE(pWaitingToBeFreed->pCallbackParameter);
-                printf("\nCFREE(pWaitingToBeFreed->pStreamCallbackParameter)\n");
-                CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
-                printf("\nCFREE(pWaitingToBeFreed)\n");
-                CFREE(pWaitingToBeFreed);
+                if(pWaitingToBeFreed->pFrameBuffer != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed->pFrameBuffer)\n");
+                    CFREE(pWaitingToBeFreed->pFrameBuffer);
+                    pWaitingToBeFreed->pFrameBuffer = NULL;
+                }
+                
+                if(pWaitingToBeFreed->pCallbackParameter != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed->pCallbackParameter)\n");
+                    CFREE(pWaitingToBeFreed->pCallbackParameter);
+                    pWaitingToBeFreed->pCallbackParameter = NULL;
+                }
+                
+                if(pWaitingToBeFreed->pStreamCallbackParameter != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed->pStreamCallbackParameter)\n");
+                    CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
+                    pWaitingToBeFreed->pStreamCallbackParameter = NULL;
+                }
+                
+                if(pWaitingToBeFreed != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed)\n");
+                    CFREE(pWaitingToBeFreed);
+                    pWaitingToBeFreed = NULL;
+                }
             }
         }
         g_aLLCInstance[index]->pLLCFrameWriteListHead = NULL;
@@ -110,14 +129,31 @@ uint8_t static_ResetLLC()
                 pWaitingToBeFreed = g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead;
                 g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead = g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead->pNext;
 
-                printf("\nCFREE(pWaitingToBeFreed->pFrameBuffer)\n");
-                CFREE(pWaitingToBeFreed->pFrameBuffer);
-                printf("\nCFREE(pWaitingToBeFreed->pCallbackParameter)\n");
-                CFREE(pWaitingToBeFreed->pCallbackParameter);
-                printf("\nCFREE(pWaitingToBeFreed->pStreamCallbackParameter)\n");
-                CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
-                printf("\nCFREE(pWaitingToBeFreed)\n");
-                CFREE(pWaitingToBeFreed);
+                if(pWaitingToBeFreed->pFrameBuffer != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed->pFrameBuffer)\n");
+                    CFREE(pWaitingToBeFreed->pFrameBuffer);
+                    pWaitingToBeFreed->pFrameBuffer = NULL;
+                }
+                
+                if(pWaitingToBeFreed->pCallbackParameter != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed->pCallbackParameter)\n");
+                    CFREE(pWaitingToBeFreed->pCallbackParameter);
+                    pWaitingToBeFreed->pCallbackParameter = NULL;
+                }
+                if(pWaitingToBeFreed->pStreamCallbackParameter != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed->pStreamCallbackParameter)\n");
+                    CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
+                    pWaitingToBeFreed->pStreamCallbackParameter = NULL;
+                }
+                if(pWaitingToBeFreed != NULL)
+                {
+                    printf("\nCFREE(pWaitingToBeFreed)\n");
+                    CFREE(pWaitingToBeFreed);
+                    pWaitingToBeFreed = NULL;
+                }
             }
         }
         g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead = NULL;

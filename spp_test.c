@@ -23,13 +23,14 @@ void* User_Thread(void* parameter)
         
         if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
             continue;
-        if(RecvMessage(pRecvedData,&nRecvedDataLen))
+        if(RecvMessage(&pRecvedData,&nRecvedDataLen))
         {
             pRecvedMessage = (tMessageStruct*)CMALLOC(sizeof(uint8_t)*nRecvedDataLen);
             for(int index = 0; index < nRecvedDataLen; index++)
             {
                 *(uint8_t*)(pRecvedMessage + index) = *(uint8_t*)(pRecvedData + index);
             }
+            pRecvedMessage = (tMessageStruct*)pRecvedMessage;
             printf("\npriority : 0x%02x\nlength : 0x%02x",pRecvedMessage->nMessagePriority,pRecvedMessage->nMessagelen);
             if(*(pRecvedMessage->pMessageData) == 0x00)
             {
