@@ -46,7 +46,7 @@ void* MultiTimer_thread(void *parameter)
     new_time_value.it_value.tv_sec = 0;
     new_time_value.it_value.tv_usec = 1;
 
-    setitimer(ITIMER_REAL, &new_time_value, NULL);
+    //setitimer(ITIMER_REAL, &new_time_value, NULL);
 
     for(;;)
     {
@@ -66,6 +66,12 @@ void* MultiTimer_thread(void *parameter)
 void* SendData_thread(void *parameter)
 {
     printf("\nthis is send thread!\n");
+    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    {
+        printf("\nwhen set timeout handler the error occur!\n");
+        return ((void*)0);
+    }
+
     struct sockaddr_in service_address;
 
     g_client_sock = socket(AF_INET,SOCK_STREAM,0);
@@ -87,6 +93,12 @@ void* SendData_thread(void *parameter)
 void* RecvData_thread(void *parameter)
 {
     printf("\nthis is recv thread!\n");
+    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    {
+        printf("\nwhen set timeout handler the error occur!\n");
+        return ((void*)0);
+    }
+
     struct sockaddr_in service_address,client_address;
     tLLCInstance *pLLCInstance;
     //int service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);

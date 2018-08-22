@@ -8,6 +8,12 @@
 void* User_Thread(void* parameter)
 {
     printf("\nthis is user thread!\n");
+    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    {
+        printf("\nwhen set timeout handler the error occur!\n");
+        return ((void*)0);
+    }
+
     void *pRecvedData;
     uint32_t nRecvedDataLen;
     tMessageStruct* pRecvedMessage;
@@ -37,6 +43,12 @@ void* User_Thread(void* parameter)
 void* User_Thread(void* parameter)
 {
     printf("\nthis is user thread!\n");
+    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    {
+        printf("\nwhen set timeout handler the error occur!\n");
+        return ((void*)0);
+    }
+
     void *pSendData;
     uint32_t nSendDataLen;
     tMessageStruct* pSendMessage;
@@ -66,6 +78,11 @@ void* User_Thread(void* parameter)
 
 int main()
 {
+    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    {
+        printf("\nwhen set timeout handler the error occur!\n");
+        return ((void*)0);
+    }
     InitSPP();
     if(!INIT_LOCK())
     {
@@ -76,13 +93,6 @@ int main()
     
 
     int err;
-    err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
-    if(err != 0)
-    {
-        printf("\nCan't create multi timer thread!\n");
-        return 0;
-    }
-
     err = pthread_create(&nSendThread,NULL,SendData_thread,NULL);
     if(err != 0)
     {
@@ -103,6 +113,23 @@ int main()
         printf("\nCan't create multi timer thread!\n");
         return 0;
     }
+
+    struct itimerval new_time_value,old_time_value;
+    new_time_value.it_interval.tv_sec = 0;
+    new_time_value.it_interval.tv_usec = 0;
+    new_time_value.it_value.tv_sec = 3;
+    new_time_value.it_value.tv_usec = 0;
+
+    setitimer(ITIMER_REAL, &new_time_value, NULL);
+    pause();
+
+    err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
+    if(err != 0)
+    {
+        printf("\nCan't create multi timer thread!\n");
+        return 0;
+    }
+
 
     pthread_join(nTimerThread,NULL);
     pthread_join(nSendThread,NULL);
