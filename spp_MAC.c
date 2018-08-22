@@ -445,6 +445,7 @@ tLLCInstance* MACFrameRead()
             {
                 g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_UA;
                 LOCK_WRITE();
+                printf("\nrecv reset and the window size is ok\n");
                 static_ResetLLC();
                 UNLOCK_WRITE();
             }
@@ -464,6 +465,7 @@ tLLCInstance* MACFrameRead()
         // }
         SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
         LOCK_WRITE();
+        printf("\nrecv ua\n");
         static_ResetLLC();
         UNLOCK_WRITE();
     }    
@@ -578,8 +580,9 @@ uint8_t MACFrameWrite()
     tMACWriteContext* pSingleMACFrame = NULL;
     tLLCWriteContext* pSendLLCFrame = NULL;
     uint8_t nCRC = 0;
+    int nPriority;
     //the connect ctrl frame belong to priority 0, so if there is any connect ctrl frame, is must be found firstly
-    for(int nPriority = 0; nPriority < PRIORITY; nPriority++)
+    for(nPriority = 0; nPriority < PRIORITY; nPriority++)
     {
         if((g_aLLCInstance[nPriority]->pLLCFrameWriteListHead != NULL) || (g_aLLCInstance[nPriority]->nNextCtrlFrameToSend != READ_CTRL_FRAME_NONE))
         {
@@ -664,15 +667,44 @@ uint8_t MACFrameWrite()
     }//控制帧优先级最高，直接发送
     else
     {
-        if(pLLCInstance->nNextCtrlFrameToSend == LLC_FRAME_RST)
+        if(pLLCInstance->nNextCtrlFrameToSend != LLC_FRAME_UA)
         {
             //预留一个 CRC 字节
             pCtrlLLCHeader = (uint8_t*)CMALLOC(sizeof(uint8_t)*4);
             pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*7);   //SOF LEN + LLCCRTL WINDOWSIZE [INSERTED ZERO] + CRC EOF
             
             *pCtrlLLCHeader = 0x02;
-            *(pCtrlLLCHeader + 1) = LLC_FRAME_RST;
-            *(pCtrlLLCHeader + 2) = g_sSPPInstance->nWindowSize;
+            
+            if(pLLCInstance->nNextCtrlFrameToSend == LLC_FRAME_RST)
+            {
+                *(pCtrlLLCHeader + 1) = LLC_FRAME_RST;
+                *(pCtrlLLCHeader + 2) = g_sSPPInstance->nWindowSize;
+            }
+            else
+            {
+                switch(pLLCInstance->nNextCtrlFrameToSend)
+                {
+                    case READ_CTRL_FRAME_RNR:
+                        *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_RNR;
+                        *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                        pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
+                        break;
+                    case READ_CTRL_FRAME_ACK:
+                        *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_ACK;
+                        *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                        pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
+                        break;
+                    case READ_CTRL_FRAME_REJ:
+                        *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_REJ;
+                        *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
+                        pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
+                        break;
+                }
+                *(pCtrlLLCHeader + 2) = 0;
+                *(pCtrlLLCHeader + 2) |= 0x80;  //just one fragment
+                *(pCtrlLLCHeader + 2) |= (g_nVersion & VERSION_FIELD_MASK);   //版本信息
+                *(pCtrlLLCHeader + 2) |= (nPriority & PRIORITY_MASK);  //优先级信息  
+            }
             nCRC = 0;
             for(uint8_t index = 0; index < 3; index++)
                 nCRC ^= *(pCtrlLLCHeader + index);
@@ -692,30 +724,9 @@ uint8_t MACFrameWrite()
             pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*6);   //SOF LEN + LLCCRTL [INSERTED ZERO] + CRC EOF
             *pCtrlLLCHeader = 0x01;
             *(pCtrlLLCHeader + 1) = 0x00;
-            switch(pLLCInstance->nNextCtrlFrameToSend)
-            {
-                case READ_CTRL_FRAME_RNR:
-                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_RNR;
-                    *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
-                    pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
-                    break;
-                case READ_CTRL_FRAME_ACK:
-                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_ACK;
-                    *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
-                    pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
-                    break;
-                case READ_CTRL_FRAME_REJ:
-                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_REJ;
-                    *(pCtrlLLCHeader + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
-                    pLLCInstance->nReadLastAcknowledgedFrameId = pLLCInstance->nReadNextToReceivedFrameId - 1;
-                    break;
-                case READ_CTRL_FRAME_UA:
-                    *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_UA;
-                    break;
-                default : 
-                    printf("\nthis ctrl frame is unknown\n");
-                    break;
-            }
+            
+            *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_UA;
+                   
             nCRC ^= *(pCtrlLLCHeader);
             nCRC ^= *(pCtrlLLCHeader + 1);
             
@@ -851,6 +862,7 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
             printf("\nCFREE((void*)(pPreWriteContext))\n");
             CFREE((void*)(pPreWriteContext->pFrameBuffer));
             CFREE((void*)(pPreWriteContext));
+            pPreWriteContext = NULL;
             pLLCInstance->pLLCFrameWriteCompletedListHead = NULL;
         }
         else
@@ -863,6 +875,7 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
             printf("\nCFREE((void*)(pWriteContext))\n");
             CFREE((void*)(pWriteContext->pFrameBuffer));
             CFREE((void*)(pWriteContext));
+            pWriteContext = NULL;
             pPreWriteContext->pNext = NULL;
         }
         UNLOCK_WRITE();
