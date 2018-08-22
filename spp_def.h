@@ -5,7 +5,7 @@
 #define USER_PRINTF
 #define DEBUG_PEINTF
 
-#define SERVICE_CODE 1
+#define SERVICE_CODE 0
 
 //=====================================================================================
 //                                变量类型定义
