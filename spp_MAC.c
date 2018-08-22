@@ -310,14 +310,12 @@ tLLCInstance* MACFrameRead()
                 }
                 break;
             default:
-            //PNALDebugError("static_PSHDLCFrameReadLoopRXTX: Wrong state");
             //CDebugAssert(false);
             return NULL;
         } // switch() 
         
         if(bError)
         {
-            //PNALDebugWarning("static_PSHDLCFrameReadLoopRXTX: Frame error detected");
             nWritePosition = 0;
             bError = false;
 
@@ -407,12 +405,12 @@ tLLCInstance* MACFrameRead()
         }//是reset帧
         else
         {
-            // if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_RESET)
-            // {
-            //     g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
-            //     SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
-            // }
-            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+            if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_RESET)
+            {
+                g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+                SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+            }
+            //SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
                 
             if(*(pDataRemovedZero + 2) > g_sSPPInstance->nWindowSize)
             {
@@ -431,12 +429,12 @@ tLLCInstance* MACFrameRead()
 #ifdef DEBUG_PRINTF
         printf("\n-------------->UA\n");
 #endif
-        // if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
-        // {
-        //     g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
-        //     SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
-        // }
-        SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
+        {
+            g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        }
+        //SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
         LOCK_WRITE();
         static_ResetLLC();
         UNLOCK_WRITE();
