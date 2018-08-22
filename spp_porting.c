@@ -19,6 +19,9 @@ int g_service_sock;
 int g_service_communicate_fd;
 int g_client_sock;
 
+struct sockaddr_in g_service_address,g_client_address;
+socklen_t g_client_add_len;
+
 void* CMALLOC(uint32_t length)
 {
     return (void*)malloc(length);
@@ -108,25 +111,25 @@ void* RecvData_thread(void *parameter)
         return ((void*)0);
     }
 
-    struct sockaddr_in service_address,client_address;
+    //struct sockaddr_in service_address,client_address;
     tLLCInstance *pLLCInstance;
     //int service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
     g_service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
 
-    memset(&service_address,0,sizeof(service_address));
-    service_address.sin_addr.s_addr = inet_addr(LOCAL_IP_ADDRESS);
-    service_address.sin_family = AF_INET;
-    service_address.sin_port = htons(LOCAL_IP_PORT);
+    memset(&g_service_address,0,sizeof(g_service_address));
+    g_service_address.sin_addr.s_addr = inet_addr(LOCAL_IP_ADDRESS);
+    g_service_address.sin_family = AF_INET;
+    g_service_address.sin_port = htons(LOCAL_IP_PORT);
 
-    bind(g_service_sock,(struct sockaddr*)&service_address,sizeof(service_address));
+    bind(g_service_sock,(struct sockaddr*)&g_service_address,sizeof(g_service_address));
     listen(g_service_sock,128);
-    socklen_t client_add_len = sizeof(client_address);
-
+    socklen_t g_client_add_len = sizeof(g_client_address);
+    g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
     while(1)
     {
         //printf("\nread loop\n");
 
-        g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&client_address,&client_add_len);
+        //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&client_address,&client_add_len);
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
             LLCReadFrame(pLLCInstance);
@@ -169,7 +172,7 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
 // #endif
     int nReadBytes = 0;
     nReadBytes = recv(g_service_communicate_fd,(void*)pBuffer,nReadLength,0);
-    
+    g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
     if(nReadBytes <= 0)
         return 0;
     else
