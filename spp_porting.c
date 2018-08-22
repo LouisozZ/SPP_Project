@@ -13,8 +13,6 @@ pthread_t nRecvThread;
 pthread_t nSendThread;
 pthread_t nUserThread;
 
-timer_t g_fade_in_timer;
-
 pthread_mutex_t nWtirelist;
 
 int g_service_sock;
@@ -53,9 +51,7 @@ void* MultiTimer_thread(void *parameter)
 
     for(;;)
     {
-        printf("\ntimer loop\n");
-
-        pause();
+        //printf("\ntimer loop\n");
         
         // setitimer(ITIMER_REAL, &new_time_value, NULL);
         // if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
@@ -91,7 +87,7 @@ void* SendData_thread(void *parameter)
 
     while(nConnectResult == -1)
     {
-        printf("\nconnect false\n");
+        //printf("\nconnect false\n");
         nConnectResult = connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
         
     }

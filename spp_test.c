@@ -110,8 +110,8 @@ int main()
     new_time_value.it_value.tv_usec = 0;
 
     //getitimer(ITIMER_REAL, &new_time_value);
-    setitimer(ITIMER_REAL, &new_time_value,NULL);
-    pause();
+    //setitimer(ITIMER_REAL, &new_time_value,NULL);
+    //pause();
 
     err = pthread_create(&nSendThread,NULL,SendData_thread,NULL);
     if(err != 0)
