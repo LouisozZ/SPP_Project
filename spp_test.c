@@ -35,6 +35,7 @@ void* User_Thread(void* parameter)
             {
                 SendMessage((void*)pRecvedMessage);
             }
+            printf("\nCFREE(pRecvedMessage)\n");
             CFREE(pRecvedMessage);
             pRecvedMessage = NULL;
         }
@@ -54,7 +55,7 @@ void* User_Thread(void* parameter)
     void *pSendData;
     uint32_t nSendDataLen;
     tMessageStruct* pSendMessage;
-    uint16_t nWaiting = 1;
+    uint32_t nWaiting = 1;
 
     ConnectToMCU();
 
@@ -76,12 +77,13 @@ void* User_Thread(void* parameter)
     {
         printf("\nsend data 1\n");
         nSendDataLen = 9;
+        pSendMessage = (tMessageStruct*)CMALLOC(sizeof(tMessageStruct));
         pSendMessage->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*nSendDataLen);
         pSendMessage->nMessagelen = sizeof(pSendMessage);
         pSendMessage->nMessagePriority = 3;
         for(uint8_t index = 0;index < nSendDataLen;index++)
         {
-            *(uint8_t*)(pSendMessage->pMessageData + index) = 0x00+index;
+            *(uint8_t*)(pSendMessage->pMessageData + index) = (0x00+index)&0xff;
         }
         printf("\nsend data 2\n");
         SendMessage((void*)pSendMessage);

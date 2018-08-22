@@ -90,10 +90,13 @@ uint8_t static_ResetLLC()
             {
                 pWaitingToBeFreed = g_aLLCInstance[index]->pLLCFrameWriteListHead;
                 g_aLLCInstance[index]->pLLCFrameWriteListHead = g_aLLCInstance[index]->pLLCFrameWriteListHead->pNext;
-
+                printf("\nCFREE(pWaitingToBeFreed->pFrameBuffer)\n");
                 CFREE(pWaitingToBeFreed->pFrameBuffer);
+                printf("\nCFREE(pWaitingToBeFreed->pCallbackParameter)\n");
                 CFREE(pWaitingToBeFreed->pCallbackParameter);
+                printf("\nCFREE(pWaitingToBeFreed->pStreamCallbackParameter)\n");
                 CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
+                printf("\nCFREE(pWaitingToBeFreed)\n");
                 CFREE(pWaitingToBeFreed);
             }
         }
@@ -106,9 +109,13 @@ uint8_t static_ResetLLC()
                 pWaitingToBeFreed = g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead;
                 g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead = g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead->pNext;
 
+                printf("\nCFREE(pWaitingToBeFreed->pFrameBuffer)\n");
                 CFREE(pWaitingToBeFreed->pFrameBuffer);
+                printf("\nCFREE(pWaitingToBeFreed->pCallbackParameter)\n");
                 CFREE(pWaitingToBeFreed->pCallbackParameter);
+                printf("\nCFREE(pWaitingToBeFreed->pStreamCallbackParameter)\n");
                 CFREE(pWaitingToBeFreed->pStreamCallbackParameter);
+                printf("\nCFREE(pWaitingToBeFreed)\n");
                 CFREE(pWaitingToBeFreed);
             }
         }
@@ -121,7 +128,10 @@ uint8_t static_ResetLLC()
         for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
         {
             if(g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer != NULL)
+            {
+                printf("\nCFREE(g_aLLCInstance[%d]->aSlideWindow[%d]->pFrameBuffer\n",index,nWindowNum);
                 CFREE(g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer);
+            }    
             g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = NULL;
             g_aLLCInstance[index]->aSlideWindow[nWindowNum]->nFrameLength = 0;
             g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pNext = NULL;
@@ -230,7 +240,7 @@ tLLCInstance* MACFrameRead()
             nReadPosition = 0;
             if( (nReadBufferCount = ReadBytes(pReadBuffer, MAC_FRAME_MAX_LENGTH)) == 0)
             {
-                printf("\nReadBytes read nothing!\n");
+                //printf("\nReadBytes read nothing!\n");
                 return NULL;
             }
         }
@@ -397,11 +407,12 @@ tLLCInstance* MACFrameRead()
         }//是reset帧
         else
         {
-            if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_RESET)
-            {
-                g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
-                SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
-            }
+            // if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_RESET)
+            // {
+            //     g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+            //     SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+            // }
+            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
                 
             if(*(pDataRemovedZero + 2) > g_sSPPInstance->nWindowSize)
             {
@@ -420,12 +431,15 @@ tLLCInstance* MACFrameRead()
 #ifdef DEBUG_PRINTF
         printf("\n-------------->UA\n");
 #endif
-        if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
-        {
-            g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
-            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
-        }
+        // if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
+        // {
+        //     g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+        //     SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        // }
+        SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        LOCK_WRITE();
         static_ResetLLC();
+        UNLOCK_WRITE();
     }    
     else
     {
@@ -547,7 +561,7 @@ uint8_t MACFrameWrite()
     }
     if(pLLCInstance == NULL)
     {
-        printf("\nthere is no frame to send!\n");
+        //printf("\nthere is no frame to send!\n");
         return 0;
     }
     //滑动窗口是否满了
@@ -568,6 +582,7 @@ uint8_t MACFrameWrite()
         pSingleMACFrame = pLLCInstance->aSlideWindow[static_Modulo(pLLCInstance->nWriteNextToSendFrameId,pLLCInstance->nWindowSize)];
         if(pSingleMACFrame->pFrameBuffer != NULL)
         {
+            printf("\nCFREE((void*)(pSingleMACFrame->pFrameBuffer))\n");
             CFREE((void*)(pSingleMACFrame->pFrameBuffer));
             pSingleMACFrame->pFrameBuffer = NULL;
             pSingleMACFrame->nFrameLength = 0;
@@ -799,6 +814,7 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
         pWriteContext = pPreWriteContext->pNext;
         if(pWriteContext == NULL)
         {
+            printf("\nCFREE((void*)(pPreWriteContext))\n");
             CFREE((void*)(pPreWriteContext));
             pLLCInstance->pLLCFrameWriteCompletedListHead = NULL;
         }
@@ -809,6 +825,7 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
                 pPreWriteContext = pWriteContext;
                 pWriteContext = pPreWriteContext->pNext;
             }
+            printf("\nCFREE((void*)(pWriteContext))\n");
             CFREE((void*)(pWriteContext));
             pPreWriteContext->pNext = NULL;
         }
