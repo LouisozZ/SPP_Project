@@ -230,7 +230,7 @@ tLLCInstance* MACFrameRead()
             nReadPosition = 0;
             if( (nReadBufferCount = ReadBytes(pReadBuffer, MAC_FRAME_MAX_LENGTH)) == 0)
             {
-                printf("\n未读到任何内容！\n");
+                printf("\nReadBytes read nothing!\n");
                 return NULL;
             }
         }

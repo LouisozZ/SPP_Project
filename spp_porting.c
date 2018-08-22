@@ -85,12 +85,15 @@ void* SendData_thread(void *parameter)
     inet_pton(AF_INET,DISTINATION_IP_ADDRESS,&service_address.sin_addr);
     service_address.sin_family = AF_INET;
     service_address.sin_port = htons(DISTINATION_IP_PORT);
+    uint16_t nWaiting = 1;
 
     int nConnectResult = -1;
 
     while(nConnectResult == -1)
     {
-        printf("\nconnect false\n");
+        nWaiting++;
+        if(nWaiting == 0)
+            printf("\nconnect false\n");
         nConnectResult = connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
         
     }

@@ -54,7 +54,7 @@ void* User_Thread(void* parameter)
     void *pSendData;
     uint32_t nSendDataLen;
     tMessageStruct* pSendMessage;
-    uint32_t nWaiting = 1;
+    uint16_t nWaiting = 1;
 
     ConnectToMCU();
 
