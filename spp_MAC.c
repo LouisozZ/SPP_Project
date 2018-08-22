@@ -40,6 +40,7 @@ uint8_t InitMACInstance()
 
 uint8_t static_ResetLLC()
 {
+    printf("\nstatic_ResetLLC()\n");
     tLLCWriteContext* pWaitingToBeFreed = NULL;
 
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_DISCONNECTED;
