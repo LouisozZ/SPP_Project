@@ -124,12 +124,12 @@ void* RecvData_thread(void *parameter)
     bind(g_service_sock,(struct sockaddr*)&g_service_address,sizeof(g_service_address));
     listen(g_service_sock,128);
     g_client_add_len = sizeof(g_client_address);
-    //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
+    g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
     while(1)
     {
         //printf("\nread loop\n");
 
-        g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
+        //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
             LLCReadFrame(pLLCInstance);

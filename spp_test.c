@@ -74,15 +74,18 @@ void* User_Thread(void* parameter)
             break;
     }
     {
+        printf("\nsend data 1\n");
         nSendDataLen = 9;
-        pSendMessage->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*9);
+        pSendMessage->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*nSendDataLen);
         pSendMessage->nMessagelen = sizeof(pSendMessage);
         pSendMessage->nMessagePriority = 3;
-        for(int index = 0;index < nSendDataLen;index++)
+        for(uint8_t index = 0;index < nSendDataLen;index++)
         {
             *(uint8_t*)(pSendMessage->pMessageData + index) = 0x00+index;
         }
+        printf("\nsend data 2\n");
         SendMessage((void*)pSendMessage);
+        printf("\nsend data 3\n");
     }
 }
 #endif

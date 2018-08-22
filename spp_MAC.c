@@ -403,7 +403,7 @@ tLLCInstance* MACFrameRead()
                 SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
             }
                 
-            if(*(pDataRemovedZero + 1) > g_sSPPInstance->nWindowSize)
+            if(*(pDataRemovedZero + 2) > g_sSPPInstance->nWindowSize)
             {
                 g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_RST;
             }
@@ -411,10 +411,6 @@ tLLCInstance* MACFrameRead()
             {
                 g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_UA;
             }
-#ifdef DEBUG_PRINTF
-            printf("\n-------------->REST : window size : %d\n",*(pDataRemovedZero + 2));
-            //return NULL;
-#endif
         }        
         //响应
         return NULL;
@@ -531,6 +527,7 @@ tLLCInstance* MACFrameRead()
 uint8_t MACFrameWrite()
 {
     //取得优先级最高的LLC实体，把它的写链表中最早的数据写到滑动窗口上
+    //printf("\nMACFrameWrite\n");
     uint8_t nInsertedZeroFrameLength = 0;
     uint8_t* pCtrlLLCHeader = NULL;
     uint8_t* pCtrlFrameData = NULL;
@@ -591,6 +588,10 @@ uint8_t MACFrameWrite()
             nCRC ^= *(pSendLLCFrame->pFrameBuffer + index);
         }
         *(pSendLLCFrame->pFrameBuffer + pSendLLCFrame->nFrameLength - 1) = nCRC;
+        printf("\npDataHaventInsertZero : ");
+        for(int index = 0; index < pSendLLCFrame->nFrameLength; index++)
+            printf("0x%02x ",*(pSendLLCFrame->pFrameBuffer + index));
+        printf("\n");
         nInsertedZeroFrameLength = static_InsertZero(pSendLLCFrame->pFrameBuffer,pSingleMACFrame->pFrameBuffer+1,pSendLLCFrame->nFrameLength);
         
         *(pSingleMACFrame->pFrameBuffer + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
@@ -633,6 +634,10 @@ uint8_t MACFrameWrite()
             for(uint8_t index = 0; index < 3; index++)
                 nCRC ^= *(pCtrlLLCHeader + index);
             *(pCtrlLLCHeader + 3) = nCRC;
+            printf("\npDataHaventInsertZero : ");
+            for(int index = 0; index < 4; index++)
+                printf("0x%02x ",*(pCtrlLLCHeader + index));
+            printf("\n");
             nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,4);
         }
         else
@@ -670,6 +675,10 @@ uint8_t MACFrameWrite()
             nCRC ^= *(pCtrlLLCHeader + 1);
             
             *(pCtrlLLCHeader + 2) = nCRC;
+            printf("\npDataHaventInsertZero : ");
+            for(int index = 0; index < 3; index++)
+                printf("0x%02x ",*(pCtrlLLCHeader + index));
+            printf("\n");
             nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,3);
         }
         *(pCtrlFrameData) = HEADER_SOF;
