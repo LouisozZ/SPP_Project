@@ -420,12 +420,12 @@ tLLCInstance* MACFrameRead()
 #ifdef DEBUG_PRINTF
         printf("\n-------------->UA\n");
 #endif
-        if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
-        {
-            g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
-            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
-        }
-        //SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        // if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LLC_UA)
+        // {
+        //     g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+        //     SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+        // }
+        SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
         LOCK_WRITE();
         static_ResetLLC();
         UNLOCK_WRITE();
