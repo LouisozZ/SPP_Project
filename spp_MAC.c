@@ -759,8 +759,9 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     uint32_t nReceivedId = 0;
     uint32_t nAckedFrameNum = 0;
     nN_R_Value = (nCtrlFrame & 0x07);
+    printf("\nbefore get32bit function , the recved id is %d\n",nN_R_Value);
     nReceivedId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
-    
+    printf("\nafter get32bit function , the recved id is %d\n",nReceivedId);
     if(!((nReceivedId > nWriteLastACKId) && (nReceivedId <= nWriteNextWindowId)))
     {
         //如果收到对方发来的期望接收的下一帧ID不在对方已经确认收到的最大ID和我即将发送的ID之间，

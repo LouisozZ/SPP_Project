@@ -100,7 +100,7 @@ int SendMessage(void* pSendMessage)
 
     g_sSPPInstance->nNextMessageHeader = CONNECT_SEND_RECV_MESSAGE;
 
-    printf("\nnMessageLength : %d\nnMessagePriority\n",nMessageLength,nMessagePriority);
+    printf("\nnMessageLength : %d\nnMessagePriority : %d\n",nMessageLength,nMessagePriority);
 
     nSentBytes = LLCFrameWrite((uint8_t*)pSendMessage,nMessageLength,nMessagePriority,true);
     if(nSentBytes == nMessageLength)
