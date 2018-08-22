@@ -30,6 +30,7 @@ void* CMALLOC(uint32_t length)
 uint8_t CFREE(void* pFreeAddress)
 {
     free(pFreeAddress);
+    pFreeAddress = NULL;
     return 1;
 }
 

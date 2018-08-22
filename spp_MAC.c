@@ -124,18 +124,6 @@ uint8_t static_ResetLLC()
         g_aLLCInstance[index]->sLLCFrameNextToSend.nLLCFrameLength = 0;
 
         static_AvoidCounterSpin(g_aLLCInstance[index]);
-
-        for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
-        {
-            if(g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer != NULL)
-            {
-                printf("\nCFREE(g_aLLCInstance[%d]->aSlideWindow[%d]->pFrameBuffer\n",index,nWindowNum);
-                CFREE(g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer);
-            }    
-            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = NULL;
-            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->nFrameLength = 0;
-            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pNext = NULL;
-        }
     }
 
     return 0;
@@ -419,6 +407,9 @@ tLLCInstance* MACFrameRead()
             else
             {
                 g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_UA;
+                LOCK_WRITE();
+                static_ResetLLC();
+                UNLOCK_WRITE();
             }
         }        
         //响应
@@ -532,6 +523,8 @@ tLLCInstance* MACFrameRead()
         }
     }
     //产生了LLC ctrl 帧，所以调用一次写函数，把命令（响应）发送出去
+    printf("\nCFREE(pDataRemovedZero)\n");
+    CFREE(pDataRemovedZero);
     MACFrameWrite();
     return pLLCInstance;
 }
@@ -652,6 +645,8 @@ uint8_t MACFrameWrite()
                 printf("0x%02x ",*(pCtrlLLCHeader + index));
             printf("\n");
             nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,4);
+            printf("\nCFREE(pCtrlLLCHeader)\n");
+            CFREE(pCtrlLLCHeader);
         }
         else
         {
@@ -693,12 +688,16 @@ uint8_t MACFrameWrite()
                 printf("0x%02x ",*(pCtrlLLCHeader + index));
             printf("\n");
             nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,3);
+            printf("\nCFREE(pCtrlLLCHeader)\n");
+            CFREE(pCtrlLLCHeader);
         }
         *(pCtrlFrameData) = HEADER_SOF;
         *(pCtrlFrameData + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
         nCtrlFrameLength = nInsertedZeroFrameLength + 2;
 
         SPIWriteBytes(pLLCInstance,pCtrlFrameData,nCtrlFrameLength,1);
+        printf("\nCFREE(pCtrlFrameData)\n");
+        CFREE(pCtrlFrameData);
         pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_NONE;
         return 0;
     }
@@ -813,6 +812,7 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
         if(pWriteContext == NULL)
         {
             printf("\nCFREE((void*)(pPreWriteContext))\n");
+            CFREE((void*)(pPreWriteContext->pFrameBuffer));
             CFREE((void*)(pPreWriteContext));
             pLLCInstance->pLLCFrameWriteCompletedListHead = NULL;
         }
@@ -824,6 +824,7 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
                 pWriteContext = pPreWriteContext->pNext;
             }
             printf("\nCFREE((void*)(pWriteContext))\n");
+            CFREE((void*)(pWriteContext->pFrameBuffer));
             CFREE((void*)(pWriteContext));
             pPreWriteContext->pNext = NULL;
         }

@@ -328,7 +328,8 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         printf("\nmessage still in buffer\n");
         return 0;
     }
-
+    printf("\nCFREE(pBuffer)\n");
+    CFREE(pBuffer);
    MACFrameWrite();
    return;
 }
