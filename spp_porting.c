@@ -181,12 +181,11 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
         return 0;
     else
     {
-        printf("\nrecv data as flow : \n");
+        printf("\n******** recv data as flow ***********\n");
         for(int index = 0;index < nReadBytes; index++)
-        {
             printf("0x%02x ",*(uint8_t*)(pBuffer+index));
-        }
-        printf("\n");
+        printf("\n\n**************************************\n");
+        printf("\nCONNECT_STATU is : 0x%02x\n\n",g_sSPPInstance->nConnectStatus);
         return nReadBytes;
     }
 }
@@ -197,6 +196,7 @@ uint8_t SPI_SEND_BYTES(uint8_t* pData,uint8_t nLength)
     for(int index = 0; index < nLength; index++)
         printf("0x%02x ",*(pData+index));
     printf("\n\n--------------------------------------\n");
+    printf("\nCONNECT_STATU is : 0x%02x\n\n",g_sSPPInstance->nConnectStatus);
     send(g_client_sock,(void*)pData,nLength,0);
 }
 
