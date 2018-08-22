@@ -19,6 +19,8 @@ void* User_Thread(void* parameter)
     tMessageStruct* pRecvedMessage;
     while(1)
     {
+        //printf("\nservice loop\n");
+        
         if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
             continue;
         if(RecvMessage(pRecvedData,&nRecvedDataLen))
@@ -57,6 +59,8 @@ void* User_Thread(void* parameter)
 
     while(1)
     {
+        //printf("\nclient loop\n");
+
         if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
             continue;
         else 
@@ -90,11 +94,8 @@ int main()
         return;
     }
 
-    
-
     int err;
     
-
     err = pthread_create(&nRecvThread,NULL,RecvData_thread,NULL);
     if(err != 0)
     {
@@ -108,7 +109,8 @@ int main()
     new_time_value.it_value.tv_sec = 3;
     new_time_value.it_value.tv_usec = 0;
 
-    setitimer(ITIMER_REAL, &new_time_value, NULL);
+    //getitimer(ITIMER_REAL, &new_time_value);
+    setitimer(ITIMER_REAL, &new_time_value,NULL);
     pause();
 
     err = pthread_create(&nSendThread,NULL,SendData_thread,NULL);

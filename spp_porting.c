@@ -13,6 +13,8 @@ pthread_t nRecvThread;
 pthread_t nSendThread;
 pthread_t nUserThread;
 
+timer_t g_fade_in_timer;
+
 pthread_mutex_t nWtirelist;
 
 int g_service_sock;
@@ -40,16 +42,19 @@ void* MultiTimer_thread(void *parameter)
         return ((void*)0);
     }
 
-    struct itimerval new_time_value,old_time_value;
-    new_time_value.it_interval.tv_sec = 0;
-    new_time_value.it_interval.tv_usec = 1000;
-    new_time_value.it_value.tv_sec = 0;
-    new_time_value.it_value.tv_usec = 1;
+    // struct itimerval new_time_value,old_time_value;
+    // new_time_value.it_interval.tv_sec = 0;
+    // new_time_value.it_interval.tv_usec = 1000;
+    // new_time_value.it_value.tv_sec = 0;
+    // new_time_value.it_value.tv_usec = 1;
 
-    //setitimer(ITIMER_REAL, &new_time_value, NULL);
+    // getitimer(ITIMER_REAL, &new_time_value);
+    // setitimer(ITIMER_REAL, &new_time_value,NULL);
 
     for(;;)
     {
+        printf("\ntimer loop\n");
+
         pause();
         
         // setitimer(ITIMER_REAL, &new_time_value, NULL);
@@ -72,12 +77,6 @@ void* SendData_thread(void *parameter)
         return ((void*)0);
     }
 
-    struct itimerval new_time_value,old_time_value;
-    new_time_value.it_interval.tv_sec = 0;
-    new_time_value.it_interval.tv_usec = 0;
-    new_time_value.it_value.tv_sec = 3;
-    new_time_value.it_value.tv_usec = 0;
-
     struct sockaddr_in service_address;
 
     g_client_sock = socket(AF_INET,SOCK_STREAM,0);
@@ -88,13 +87,17 @@ void* SendData_thread(void *parameter)
     service_address.sin_family = AF_INET;
     service_address.sin_port = htons(DISTINATION_IP_PORT);
 
-    while(!connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address)))
+    int nConnectResult = -1;
+
+    while(nConnectResult == -1)
     {
-        setitimer(ITIMER_REAL, &new_time_value, NULL);
-        pause();
+        printf("\nconnect false\n");
+        nConnectResult = connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
+        
     }
     while(1)
     {
+        //printf("\nwrite loop\n");
         MACFrameWrite();
     }
     
@@ -125,6 +128,8 @@ void* RecvData_thread(void *parameter)
 
     while(1)
     {
+        //printf("\nread loop\n");
+
         g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&client_address,&client_add_len);
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
