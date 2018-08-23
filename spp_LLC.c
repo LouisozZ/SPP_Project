@@ -255,29 +255,8 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         printf("\n");
 #endif   
         //得到信息帧的 N(S)，放在nReceivedFrameId中
-        nReceivedFrameId = (nCtrlHeader >> 3) & 0x07;
-
-        /* build a RR frame with the same "next to receive identifier" */
-        nCtrlHeader &= 0x07;
-        nCtrlHeader |= 0xC0;
-
-        //根据帧头 nCtrlHeader 来写响应
-        if(!CtrlFrameAcknowledge(nCtrlHeader,pLLCInstance))
-        {
-            //return 0;
-        }
+        DealIDProblemForIFrame(pLLCInstance,nCtrlHeader);
         
-        if(nReceivedFrameId != pLLCInstance->nReadNextToReceivedFrameId)
-            pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_REJ;
-        else
-        {
-            pLLCInstance->nReadNextToReceivedFrameId++;
-            if(pLLCInstance->nReadNextToReceivedFrameId == 0)
-            {
-                static_AvoidCounterSpin(pLLCInstance);
-            }
-        }
-
         //nReadLastAcknowledgedFrameId 是我已经给对方发送了的已经接受的确认信息
         nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
         

@@ -225,6 +225,36 @@ bool CheckReadBufferFree(tLLCInstance* pLLCInstance)
     }
 }
 
+void DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
+{
+    uint8_t nReceivedFrameId;
+
+    //nReceivedFrameId = (nLLCHeader >> 3) & 0x07;
+    nReceivedFrameId = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader >> 3) & 0x07);
+
+    /* build a RR frame with the same "next to receive identifier" */
+    nLLCHeader &= 0x07;
+    nLLCHeader |= 0xC0;
+
+    //根据帧头 nCtrlHeader 来写响应
+    if(!CtrlFrameAcknowledge(nLLCHeader,pLLCInstance))
+    {
+        //return 0;
+    }
+
+    if(nReceivedFrameId != pLLCInstance->nReadNextToReceivedFrameId)
+        pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_REJ;
+    else
+    {
+        pLLCInstance->nReadNextToReceivedFrameId++;
+        if(pLLCInstance->nReadNextToReceivedFrameId == 0)
+        {
+            static_AvoidCounterSpin(pLLCInstance);
+        }
+    }
+    return;
+}
+
 tLLCInstance* MACFrameRead()
 {
     tLLCInstance* pLLCInstance = NULL;
@@ -243,6 +273,7 @@ tLLCInstance* MACFrameRead()
     uint8_t nPackageHeader = 0;
     uint8_t nMessageHeader = 0;
     uint8_t nRecvedWindowSize = 0;
+    uint8_t nN_S,nN_R;
 
     uint8_t nCtrlHeader;
 
@@ -492,6 +523,7 @@ tLLCInstance* MACFrameRead()
             if(((nPackageHeader & 0x80) == 0x80) && ((nPackageHeader & 0x40) == 0x00))
             {
                 //只有一个分片，且不是数据帧
+                
                 if((nMessageHeader & CONNECT_VALUE_MASK) == CONNECT_ERROR_VALUE)   //错误帧
                 {
                     ConnectErrorFrameHandle(nMessageHeader);
@@ -553,16 +585,12 @@ tLLCInstance* MACFrameRead()
                 {
                     pLLCInstance->bIsFirstFregment = true;
                 }
-
-                //===========================================
-                //      更新相关的 ID 数据，及时响应发送方
-                //===========================================
-
-
-
-
-                //===========================================
-            }   
+            }
+            //===========================================
+            //      更新相关的 ID 数据，及时响应发送方
+            //===========================================
+            DealIDProblemForIFrame(pLLCInstance,nCtrlHeader);
+            //===========================================   
         }//未知帧类型
         else 
         {
@@ -805,6 +833,8 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         //更新LastACK
         nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
         printf("\nREJ : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        printf("\nREJ : 0x%08x ->nWriteNextToSendFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextToSendFrameId);
+        printf("\nREJ : 0x%08x ->nWriteNextWindowFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
         
         pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
         //##加锁
