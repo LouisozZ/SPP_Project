@@ -792,13 +792,14 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     uint8_t nN_R_Value;
     uint32_t nWriteLastACKId = pLLCInstance->nWriteLastAckSentFrameId;
     uint32_t nWriteNextWindowId = pLLCInstance->nWriteNextWindowFrameId;
+    uint32_t nWriteNextToSendId = pLLCInstance->nWriteNextToSendFrameId;
     uint32_t nReceivedId = 0;
     uint32_t nAckedFrameNum = 0;
     nN_R_Value = (nCtrlFrame & 0x07);
     printf("\nbefore get32bit function , the recved id is %d\n",nN_R_Value);
     nReceivedId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
     printf("\nafter get32bit function , the recved id is %d\n",nReceivedId);
-    if(!((nReceivedId > nWriteLastACKId) && (nReceivedId <= nWriteNextWindowId)))
+    if(!((nReceivedId > nWriteLastACKId) && (nReceivedId <= nWriteNextToSendId)))
     {
         //如果收到对方发来的期望接收的下一帧ID不在对方已经确认收到的最大ID和我即将发送的ID之间，
         //则表示这个ID越界了，不对这个控制帧做响应，并且记录这种情况连续出现的次数，如果连续出现多次，
