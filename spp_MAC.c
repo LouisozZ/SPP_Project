@@ -172,23 +172,14 @@ static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8
    CDebugAssert(pLLCInstance != NULL);
    CDebugAssert(pLLCInstance->nWriteNextToSendFrameId >= pLLCInstance->nWriteNextWindowFrameId);
    CDebugAssert(pLLCInstance->nWriteNextWindowFrameId > n32bitValue);
-    printf("\n======================================================\n");
    if( n3bitValue > (n32bitValue & 0x07))
    {
-      printf("\nn3bitValue : 0x%08x\n(n32bitValue & 0x07) : 0x%08x\n",n3bitValue,(n32bitValue & 0x07));
-      printf("\n(n32bitValue & 0xFFFFFFF8) : 0x%08x\n",(n32bitValue & 0xFFFFFFF8));
       n32bitValue = (n32bitValue & 0xFFFFFFF8) | n3bitValue;
-      printf("\n(n32bitValue & 0xFFFFFFF8) | n3bitValue : 0x%08x\n",n32bitValue);
-
    }
    else
    {
-      printf("\nn3bitValue : 0x%08x\n(n32bitValue & 0x07) : 0x%08x\n",n3bitValue,(n32bitValue & 0x07));
-      printf("\n(n32bitValue + 8) & 0xFFFFFFF8) : 0x%08x\n",(n32bitValue + 8) & 0xFFFFFFF8);
       n32bitValue = ((n32bitValue + 8) & 0xFFFFFFF8) | n3bitValue;
-      printf("\n((n32bitValue + 8) & 0xFFFFFFF8) | n3bitValue : 0x%08x\n",n32bitValue);
    }
-    printf("\n======================================================\n");
 
    return n32bitValue;
 }
@@ -243,7 +234,16 @@ void DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
     }
 
     if(nReceivedFrameId != pLLCInstance->nReadNextToReceivedFrameId)
+    {
+        printf("\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+        printf("nReceivedFrameId : \n0x%08x\n",nReceivedFrameId);
+        printf("\npLLCInstance->nReadNextToReceivedFrameId : \n0x%08x",pLLCInstance->nReadNextToReceivedFrameId);
+        printf("\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+
+        
         pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_REJ;
+
+    }
     else
     {
         pLLCInstance->nReadNextToReceivedFrameId++;
