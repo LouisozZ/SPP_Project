@@ -453,7 +453,7 @@ tLLCInstance* MACFrameRead()
 #ifndef DEBUG_PRINTF
         printf("\nctrl frame! 0x%02x\n",(nCtrlHeader & 0xf8));
 #endif
-        if(nCtrlHeader != LLC_FRAME_RST)//不是RSET帧，仅有package头的数据帧 LEN LLCHEAD PACKAGEHEAD 连接阶段协商版本？
+        if(nCtrlHeader != LLC_FRAME_RST)//不是RSET帧
         {
             pLLCInstance = GetCorrespondingLLCInstance(pDataRemovedZero);
             CDebugAssert(pLLCInstance != NULL);
@@ -681,6 +681,7 @@ uint8_t MACFrameWrite()
         pSingleMACFrame->nFrameLength = nInsertedZeroFrameLength + 2;
 
         pLLCInstance->pLLCFrameWriteListHead = pSendLLCFrame->pNext;
+        pSendLLCFrame->pNext = NULL;
         //##加锁
         static_AddToWriteCompletedContextList(pLLCInstance,pSingleMACFrame,1);
         //##解锁
@@ -793,13 +794,14 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     uint32_t nWriteLastACKId = pLLCInstance->nWriteLastAckSentFrameId;
     uint32_t nWriteNextWindowId = pLLCInstance->nWriteNextWindowFrameId;
     uint32_t nWriteNextToSendId = pLLCInstance->nWriteNextToSendFrameId;
-    uint32_t nReceivedId = 0;
+    uint32_t nOtherWantToRecvNextId = 0;
+    uint32_t nTheIdOtherSend = 0;
     uint32_t nAckedFrameNum = 0;
     nN_R_Value = (nCtrlFrame & 0x07);
-    printf("\nbefore get32bit function , the recved id is %d\n",nN_R_Value);
-    nReceivedId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
-    printf("\nafter get32bit function , the recved id is %d\n",nReceivedId);
-    if(!((nReceivedId > nWriteLastACKId) && (nReceivedId <= nWriteNextToSendId)))
+    
+    nOtherWantToRecvNextId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
+    
+    if(!((nOtherWantToRecvNextId > nWriteLastACKId) && (nOtherWantToRecvNextId < nWriteNextToSendId)))
     {
         //如果收到对方发来的期望接收的下一帧ID不在对方已经确认收到的最大ID和我即将发送的ID之间，
         //则表示这个ID越界了，不对这个控制帧做响应，并且记录这种情况连续出现的次数，如果连续出现多次，
@@ -809,7 +811,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         printf("\nID error!\n");
         printf("\nnWriteLastACKId : 0x%08x\n",nWriteLastACKId);
         printf("\nnWriteNextWindowId : 0x%08x\n",nWriteNextWindowId);
-        printf("\nnReceivedId : 0x%08x\n",nReceivedId);
+        printf("\nnReceivedId : 0x%08x\n",nOtherWantToRecvNextId);
 
 #endif
         return false;
@@ -818,47 +820,49 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     //RR帧
     if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_ACK)
     {
-        nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
+        nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;        
+        pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
         printf("\nRR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
-        
-        pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
+
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
             RemoveACompleteSentFrame(pLLCInstance);
         //##解锁
-        printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%02x\n",nN_R_Value);
+        printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%08x\n",nOtherWantToRecvNextId);
         return true;
     }//REJ帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_REJ)
     {
         //更新LastACK
-        nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
-        printf("\nREJ : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
-        printf("\nREJ : 0x%08x ->nWriteNextToSendFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextToSendFrameId);
-        printf("\nREJ : 0x%08x ->nWriteNextWindowFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
-        
-        pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
+        pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
+        nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
+
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
             RemoveACompleteSentFrame(pLLCInstance);
         //##解锁
-        pLLCInstance->nWriteNextWindowFrameId = nReceivedId;
-        printf("\n-------------->REJ : update NextWindowToSend\t\tN(R) : 0x%02x\n",nN_R_Value);
+        pLLCInstance->nWriteNextWindowFrameId = nOtherWantToRecvNextId;
+        printf("\nREJ : 0x%08x ->nWriteNextToSendFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextToSendFrameId);
+        printf("\nREJ : 0x%08x ->nWriteNextWindowFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
+        printf("\nREJ : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+
+        printf("\n-------------->REJ : update NextWindowToSend\t\tN(R) : 0x%02x\n",nOtherWantToRecvNextId);
         return true;
     }//RNR帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_RNR)
     {
         //更新NextWindowToSend
         pLLCInstance->bIsWriteOtherSideReady = false;
-        nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
-        printf("\nRNR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
         
-        pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
+        pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
+        printf("\nRNR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
             RemoveACompleteSentFrame(pLLCInstance);
         //##解锁
-        printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nN_R_Value);
+        printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nOtherWantToRecvNextId);
         return true;
     }
     return false;
