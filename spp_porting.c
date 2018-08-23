@@ -134,6 +134,7 @@ void* RecvData_thread(void *parameter)
         //printf("\nread loop\n");
 
         //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
+        printf("");
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
             LLCReadFrame(pLLCInstance);

@@ -589,7 +589,9 @@ tLLCInstance* MACFrameRead()
             //===========================================
             //      更新相关的 ID 数据，及时响应发送方
             //===========================================
+            printf("Befor deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
             DealIDProblemForIFrame(pLLCInstance,nCtrlHeader);
+            printf("After deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
             //===========================================   
         }//未知帧类型
         else 
@@ -801,7 +803,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     
     nOtherWantToRecvNextId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
     
-    if(!((nOtherWantToRecvNextId > nWriteLastACKId) && (nOtherWantToRecvNextId < nWriteNextToSendId)))
+    if(!((nOtherWantToRecvNextId > nWriteLastACKId) && (nOtherWantToRecvNextId <= nWriteNextToSendId)))
     {
         //如果收到对方发来的期望接收的下一帧ID不在对方已经确认收到的最大ID和我即将发送的ID之间，
         //则表示这个ID越界了，不对这个控制帧做响应，并且记录这种情况连续出现的次数，如果连续出现多次，
@@ -872,6 +874,9 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
 {
     tMACWriteContext* pSendMACFrame = NULL;
     g_sMACInstance->bIsWriteFramePending = true;
+
+    printf("Befor SPIWriteBytes(),0x%08x->nWriteNextWindowFrameId : 0x%08x",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
+
     if(bIsCtrlFrame)
     {
         //直接发送数据;
@@ -886,6 +891,9 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
             static_AvoidCounterSpin(pLLCInstance);
     }
     g_sMACInstance->bIsWriteFramePending = false;
+
+    printf("After SPIWriteBytes(),0x%08x->nWriteNextWindowFrameId : 0x%08x",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
+
     return 0;
 }
 
