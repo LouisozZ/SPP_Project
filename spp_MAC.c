@@ -523,7 +523,13 @@ tLLCInstance* MACFrameRead()
             if(((nPackageHeader & 0x80) == 0x80) && ((nPackageHeader & 0x40) == 0x00))
             {
                 //只有一个分片，且不是数据帧
-                
+                //===========================================
+                //      更新相关的 ID 数据，及时响应发送方
+                //===========================================
+                printf("Befor deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
+                DealIDProblemForIFrame(pLLCInstance,nCtrlHeader);
+                printf("After deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
+                //===========================================   
                 if((nMessageHeader & CONNECT_VALUE_MASK) == CONNECT_ERROR_VALUE)   //错误帧
                 {
                     ConnectErrorFrameHandle(nMessageHeader);
@@ -586,13 +592,7 @@ tLLCInstance* MACFrameRead()
                     pLLCInstance->bIsFirstFregment = true;
                 }
             }
-            //===========================================
-            //      更新相关的 ID 数据，及时响应发送方
-            //===========================================
-            printf("Befor deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
-            DealIDProblemForIFrame(pLLCInstance,nCtrlHeader);
-            printf("After deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
-            //===========================================   
+            
         }//未知帧类型
         else 
         {
