@@ -38,31 +38,35 @@ uint8_t CFREE(void* pFreeAddress)
 void* MultiTimer_thread(void *parameter)
 {
     printf("\nthis is timer thread!\n");
-    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
-    {
-        printf("\nwhen set timeout handler the error occur!\n");
-        return ((void*)0);
-    }
+    // if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    // {
+    //     printf("\nwhen set timeout handler the error occur!\n");
+    //     return ((void*)0);
+    // }
 
-    // struct itimerval new_time_value,old_time_value;
-    // new_time_value.it_interval.tv_sec = 0;
-    // new_time_value.it_interval.tv_usec = 1000;
-    // new_time_value.it_value.tv_sec = 0;
-    // new_time_value.it_value.tv_usec = 1;
+    int err,signo;
 
-    // getitimer(ITIMER_REAL, &new_time_value);
-    // setitimer(ITIMER_REAL, &new_time_value,NULL);
+    struct itimerval new_time_value,old_time_value;
+    new_time_value.it_interval.tv_sec = 0;
+    new_time_value.it_interval.tv_usec = 1000;
+    new_time_value.it_value.tv_sec = 0;
+    new_time_value.it_value.tv_usec = 1;
+
+    setitimer(ITIMER_REAL, &new_time_value,NULL);
 
     for(;;)
     {
-        //printf("\ntimer loop\n");
-        
-        // setitimer(ITIMER_REAL, &new_time_value, NULL);
-        // if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
-        // {
-        //     printf("\nwhen set timeout handler the error occur!\n");
-        //     return ((void*)0);
-        // }
+        err = sigwait(&g_sigset_mask,&signo);
+        if(err != 0)
+        {
+            printf("\nsigwait error! can't open multitimer task!\n");
+            return ;
+        }
+
+        if(signo == SIGALRM)
+        {
+            SYSTimeoutHandler(signo);
+        }
     }
 
     return ((void*)0);
@@ -71,10 +75,13 @@ void* MultiTimer_thread(void *parameter)
 void* SendData_thread(void *parameter)
 {
     printf("\nthis is send thread!\n");
-    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+
+    int err;
+    sigset_t old_sig_mask;
+    if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
     {
-        printf("\nwhen set timeout handler the error occur!\n");
-        return ((void*)0);
+        printf("\nset sig mask error!\n");
+        return ;
     }
 
     struct sockaddr_in service_address;
@@ -109,10 +116,13 @@ void* SendData_thread(void *parameter)
 void* RecvData_thread(void *parameter)
 {
     printf("\nthis is recv thread!\n");
-    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+
+    int err;
+    sigset_t old_sig_mask;
+    if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
     {
-        printf("\nwhen set timeout handler the error occur!\n");
-        return ((void*)0);
+        printf("\nset sig mask error!\n");
+        return ;
     }
 
     //struct sockaddr_in service_address,client_address;

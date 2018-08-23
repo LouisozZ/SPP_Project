@@ -202,7 +202,7 @@ uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
 */
 void SYSTimeoutHandler(int signo)
 {
-    printf("\nenter SYSTimeoutHandler\n");
+    //printf("\nenter SYSTimeoutHandler\n");
     if(signo != SIGALRM)
         return;
     tSppMultiTimer* pEarliestTimer = NULL;
@@ -213,9 +213,11 @@ void SYSTimeoutHandler(int signo)
     {
         if((g_pTimeoutCheckListHead->nTimeStamp <= g_nAbsoluteTime) && (g_pTimeoutCheckListHead->bIsOverflow == g_bIs_g_nAbsoluteTimeOverFlow))
         {
+            printf("\nTime out!\n");
             pWaitingToHandle = g_pTimeoutCheckListHead;
             g_pTimeoutCheckListHead = g_pTimeoutCheckListHead->pNextTimer;
-            g_pTimeoutCheckListHead->pPreTimer = NULL;
+            if(g_pTimeoutCheckListHead != NULL)
+                g_pTimeoutCheckListHead->pPreTimer = NULL;
             pWaitingToHandle->pNextTimer = NULL;
 
             pEarliestTimer = pWaitingToHandle;

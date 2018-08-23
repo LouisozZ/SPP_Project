@@ -10,6 +10,8 @@ uint8_t g_nVersion;
 uint32_t g_nAbsoluteTime;
 uint8_t g_nReconnectTimes;
 
+sigset_t g_sigset_mask;
+
 uint8_t g_aTimerID[MAX_TIMER_UPPER_LIMIT];
 uint32_t g_aDefaultTimeout[MAX_TIMER_UPPER_LIMIT];
 

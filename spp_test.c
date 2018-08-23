@@ -2,16 +2,19 @@
 
 #include "sys/time.h"
 #include "pthread.h"
+#include "signal.h"
 
 #if SERVICE_CODE
 //服务器端，接受数据线程
 void* User_Thread(void* parameter)
 {
     printf("\nthis is user thread!\n");
-    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    int err;
+    sigset_t old_sig_mask;
+    if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
     {
-        printf("\nwhen set timeout handler the error occur!\n");
-        return ((void*)0);
+        printf("\nset sig mask error!\n");
+        return ;
     }
 
     void *pRecvedData;
@@ -47,10 +50,12 @@ void* User_Thread(void* parameter)
 void* User_Thread(void* parameter)
 {
     printf("\nthis is user thread!\n");
-    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
+    int err;
+    sigset_t old_sig_mask;
+    if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
     {
-        printf("\nwhen set timeout handler the error occur!\n");
-        return ((void*)0);
+        printf("\nset sig mask error!\n");
+        return ;
     }
 
     void *pSendData;
@@ -66,9 +71,9 @@ void* User_Thread(void* parameter)
 
         if(g_sSPPInstance->nConnectStatus != CONNECT_STATU_CONNECTED)
         {
-            nWaiting++;
-            if(nWaiting == 0)
-                ConnectToMCU();
+            // nWaiting++;
+            // if(nWaiting == 0)
+            //     ConnectToMCU();
             continue;
         }
             
@@ -113,6 +118,17 @@ int main()
     }
 
     int err;
+    uint16_t delay = 1;
+
+    sigset_t old_sig_mask;
+    sigemptyset(&g_sigset_mask);
+    sigaddset(&g_sigset_mask,SIGALRM);
+
+    if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
+    {
+        printf("\nset sig mask error!\n");
+        return ;
+    }
     
     err = pthread_create(&nRecvThread,NULL,RecvData_thread,NULL);
     if(err != 0)
@@ -121,35 +137,28 @@ int main()
         return 0;
     }
 
-    struct itimerval new_time_value,old_time_value;
-    new_time_value.it_interval.tv_sec = 0;
-    new_time_value.it_interval.tv_usec = 0;
-    new_time_value.it_value.tv_sec = 3;
-    new_time_value.it_value.tv_usec = 0;
-
-    //getitimer(ITIMER_REAL, &new_time_value);
-    //setitimer(ITIMER_REAL, &new_time_value,NULL);
-    //pause();
-
     err = pthread_create(&nSendThread,NULL,SendData_thread,NULL);
     if(err != 0)
     {
         printf("\nCan't create multi timer thread!\n");
         return 0;
     }
-    err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
-    if(err != 0)
-    {
-        printf("\nCan't create multi timer thread!\n");
-        return 0;
-    }
+    
     err = pthread_create(&nUserThread,NULL,User_Thread,NULL);
     if(err != 0)
     {
         printf("\nCan't create multi timer thread!\n");
         return 0;
     }
+    
+    for(delay = 1; delay != 0; delay++);
 
+    err = pthread_create(&nTimerThread,NULL,MultiTimer_thread,NULL);
+    if(err != 0)
+    {
+        printf("\nCan't create multi timer thread!\n");
+        return 0;
+    }
 
     pthread_join(nTimerThread,NULL);
     pthread_join(nSendThread,NULL);

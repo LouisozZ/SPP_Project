@@ -1,7 +1,9 @@
 #include "spp_global.h"
 
+
 static void Timer0_RequireConnectTimeout(void* pParameter)
 {
+    printf("\nTimer0_RequireConnectTimeout\n");
     if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_LINK_CONFIRM)
     {
         g_nReconnectTimes++;
@@ -11,6 +13,7 @@ static void Timer0_RequireConnectTimeout(void* pParameter)
 
 static void Timer1_RequireDisConnectTimeout(void* pParameter)
 {
+    printf("\nTimer1_RequireDisConnectTimeout\n");
     if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_DISCONNECT_CONFIRM)
     {
         Disconnect();
@@ -41,6 +44,7 @@ int ConnectToMCU()
         return -1;
     }
     //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
+    printf("\nConnecting to the other side ...\n");
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LINK_CONFIRM;
