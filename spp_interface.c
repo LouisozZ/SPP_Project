@@ -38,7 +38,7 @@ static void Timer1_RequireResetConnectTimeout(void* pParameter)
 */
 int ConnectToMCU()
 {
-    if(g_nReconnectTimes >= 5)
+    if(g_nReconnectTimes >= 3)
     {
         printf("\n\nConnect Timeout!\n\n");
         return -1;

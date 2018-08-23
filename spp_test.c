@@ -37,7 +37,7 @@ void* User_Thread(void* parameter)
             printf("\npriority : 0x%02x\nlength : 0x%02x",pRecvedMessage->nMessagePriority,pRecvedMessage->nMessagelen);
             if(*(pRecvedMessage->pMessageData) == 0x00)
             {
-                SendMessage((void*)pRecvedMessage);
+                //SendMessage((void*)pRecvedMessage);
             }
             printf("\nCFREE(pRecvedMessage)\n");
             CFREE(pRecvedMessage);
