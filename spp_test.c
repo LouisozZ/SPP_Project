@@ -85,9 +85,13 @@ void* User_Thread(void* parameter)
         pSendMessage->nMessagePriority = 3;
         for(uint8_t index = 0;index < nSendDataLen;index++)
         {
-            *(uint8_t*)(pSendMessage->pMessageData + index) = index;
+            *((uint8_t*)(pSendMessage->pMessageData + index)) = index;
         }
-        printf("\nsend data 2\n");
+        printf("\nsend data 2\nThe message is as flow : \n");
+        for(uint8_t index = 0;index < pSendMessage->nMessagelen;index++)
+        {
+            printf("0x%02x ",*(uint8_t*)(pSendMessage + index));
+        }
         SendMessage((void*)pSendMessage);
         printf("\nsend data 3\n");
     }
