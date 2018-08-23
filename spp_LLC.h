@@ -114,5 +114,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
 uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWriteContext* pMACWriteContext,bool bIsAddToHead);
 uint8_t InitLLCInstance();
 void static_AvoidCounterSpin(tLLCInstance* pLLCInstance);
+void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize);
+
 
 #endif

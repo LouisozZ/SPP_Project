@@ -35,7 +35,7 @@ uint8_t InitLLCInstance()
         //g_aLLCInstance[index]->sLLCFrameNextToSend.aLLCFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*LLC_FRAME_MAX_LENGTH);
         g_aLLCInstance[index]->sLLCFrameNextToSend.nLLCFrameLength = 0;
 
-        static_AvoidCounterSpin(g_aLLCInstance[index]);
+        static_ResetWindowSendRecv(g_aLLCInstance[index],MAX_WINDOW_SIZE);
         
         for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
         {
@@ -151,7 +151,7 @@ uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWr
     return 1;
 }
 
-static void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize)
+void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize)
 {
    pLLCInstance->nWindowSize = nWindowSize;
 
@@ -160,6 +160,7 @@ static void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindo
    pLLCInstance->nReadLastAcknowledgedFrameId = 0x1F;                    //接收到的最新的帧ID
    pLLCInstance->nReadT1Timeout = (TIMER_T1_TIMEOUT * nWindowSize)>>2;   //T1的接收超时
    pLLCInstance->nWriteLastAckSentFrameId = 0x1F;                        //最新的对发送帧的响应的ID
+   printf("\nstatic_ResetWindowSendRecv() : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
    pLLCInstance->nWriteNextToSendFrameId = 0x20;                         //下一个要发送的帧ID
    pLLCInstance->nWriteNextWindowFrameId = 0x20;                         //下一个要被写的窗口ID
 

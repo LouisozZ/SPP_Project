@@ -160,7 +160,7 @@ uint8_t static_ResetLLC()
 
         g_aLLCInstance[index]->sLLCFrameNextToSend.nLLCFrameLength = 0;
 
-        static_AvoidCounterSpin(g_aLLCInstance[index]);
+        static_ResetWindowSendRecv(g_aLLCInstance[index],MAX_WINDOW_SIZE);
     }
 
     return 0;
@@ -172,15 +172,23 @@ static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8
    CDebugAssert(pLLCInstance != NULL);
    CDebugAssert(pLLCInstance->nWriteNextToSendFrameId >= pLLCInstance->nWriteNextWindowFrameId);
    CDebugAssert(pLLCInstance->nWriteNextWindowFrameId > n32bitValue);
-
+    printf("\n======================================================\n");
    if( n3bitValue > (n32bitValue & 0x07))
    {
+      printf("\nn3bitValue : 0x%08x\n(n32bitValue & 0x07) : 0x%08x\n",n3bitValue,(n32bitValue & 0x07));
+      printf("\n(n32bitValue & 0xFFFFFFF8) : 0x%08x\n",(n32bitValue & 0xFFFFFFF8));
       n32bitValue = (n32bitValue & 0xFFFFFFF8) | n3bitValue;
+      printf("\n(n32bitValue & 0xFFFFFFF8) | n3bitValue : 0x%08x\n",n32bitValue);
+
    }
    else
    {
+      printf("\nn3bitValue : 0x%08x\n(n32bitValue & 0x07) : 0x%08x\n",n3bitValue,(n32bitValue & 0x07));
+      printf("\n(n32bitValue + 8) & 0xFFFFFFF8) : 0x%08x\n",(n32bitValue + 8) & 0xFFFFFFF8);
       n32bitValue = ((n32bitValue + 8) & 0xFFFFFFF8) | n3bitValue;
+      printf("\n((n32bitValue + 8) & 0xFFFFFFF8) | n3bitValue : 0x%08x\n",n32bitValue);
    }
+    printf("\n======================================================\n");
 
    return n32bitValue;
 }
@@ -782,6 +790,8 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_ACK)
     {
         nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
+        printf("\nRR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        
         pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
@@ -794,6 +804,8 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     {
         //更新LastACK
         nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
+        printf("\nREJ : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        
         pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
@@ -808,6 +820,8 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         //更新NextWindowToSend
         pLLCInstance->bIsWriteOtherSideReady = false;
         nAckedFrameNum = nReceivedId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
+        printf("\nRNR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        
         pLLCInstance->nWriteLastAckSentFrameId = nReceivedId - 1;
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
