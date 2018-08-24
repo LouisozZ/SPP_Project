@@ -20,6 +20,7 @@ int g_service_communicate_fd;
 int g_client_sock;
 
 struct sockaddr_in g_service_address,g_client_address;
+struct sockaddr_in service_address;
 socklen_t g_client_add_len;
 
 void* CMALLOC(uint32_t length)
@@ -84,7 +85,7 @@ void* SendData_thread(void *parameter)
         return ;
     }
 
-    struct sockaddr_in service_address;
+    //struct sockaddr_in service_address;
 
     g_client_sock = socket(AF_INET,SOCK_DGRAM,0);
 
@@ -97,14 +98,14 @@ void* SendData_thread(void *parameter)
 
     int nConnectResult = -1;
 
-    while(nConnectResult == -1)
-    {
-        nWaiting++;
-        if(nWaiting == 0)
-            printf("\nconnect false\n");
-        nConnectResult = connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
+    // while(nConnectResult == -1)
+    // {
+    //     nWaiting++;
+    //     if(nWaiting == 0)
+    //         printf("\nconnect false\n");
+    //     nConnectResult = connect(g_client_sock,(struct sockaddr*)&service_address,sizeof(service_address));
         
-    }
+    // }
     while(1)
     {
         //printf("\nwrite loop\n");
@@ -136,9 +137,9 @@ void* RecvData_thread(void *parameter)
     g_service_address.sin_port = htons(LOCAL_IP_PORT);
 
     bind(g_service_sock,(struct sockaddr*)&g_service_address,sizeof(g_service_address));
-    listen(g_service_sock,128);
+    //listen(g_service_sock,128);
     g_client_add_len = sizeof(g_client_address);
-    g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
+    //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
     while(1)
     {
         //printf("\nread loop\n");
@@ -186,7 +187,8 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
 //     return 16;
 // #endif
     int nReadBytes = 0;
-    nReadBytes = recv(g_service_communicate_fd,(void*)pBuffer,nReadLength,0);
+    //nReadBytes = recv(g_service_communicate_fd,(void*)pBuffer,nReadLength,0);
+    nReadBytes = recvfrom(g_service_communicate_fd,(void*)pBuffer,nReadLength,0,(struct sockaddr*)&g_client_address,&g_client_add_len);
     //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
     if(nReadBytes <= 0)
         return 0;
@@ -208,7 +210,8 @@ uint8_t SPI_SEND_BYTES(uint8_t* pData,uint8_t nLength)
         printf("0x%02x ",*(pData+index));
     printf("\n\n--------------------------------------\n");
     printf("\nCONNECT_STATU is : 0x%02x\n\n",g_sSPPInstance->nConnectStatus);
-    send(g_client_sock,(void*)pData,nLength,0);
+    //send(g_client_sock,(void*)pData,nLength,0);
+    sendto(g_client_sock,(void*)pData,nLength,0,(struct sockaddr*)&service_address,sizeof(service_address));
 }
 
 uint8_t OPEN_MULTITIMER_MANGMENT()
