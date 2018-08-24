@@ -13,7 +13,7 @@ void Timer3_ACKTimeout(void* pParameter)
 {
     for(int index = 0; index < PRIORITY; index++)
     {
-        if(g_aLLCInstance[index]->nWriteNextToSendFrameId > g_aLLCInstance[index]->nWriteLastAckSentFrameId + 1)
+        if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)
             g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
     }
     return;
@@ -699,7 +699,7 @@ uint8_t MACFrameWrite()
             pLLCInstance->bIsWriteWindowsFull = false;
 
         SPIWriteBytes(pLLCInstance,pSingleMACFrame->pFrameBuffer,pSingleMACFrame->nFrameLength,0);
-        if(pLLCInstance->bIsFirstFregment)//最后一片，设置重发超时
+        if(pSingleMACFrame->bIsLastFragment)//最后一片，设置重发超时
         {
             SetTimer(TIMER2_SENDTIMEOUT,RESEND_FINIAL_FRAME_TIMEOUT,true,Timer2_FinialResendTimeout,(void*)pLLCInstance);//RESEND_TIMEOUT
         }
