@@ -213,7 +213,6 @@ void SYSTimeoutHandler(int signo)
     {
         if((g_pTimeoutCheckListHead->nTimeStamp <= g_nAbsoluteTime) && (g_pTimeoutCheckListHead->bIsOverflow == g_bIs_g_nAbsoluteTimeOverFlow))
         {
-            printf("\nTime out!\n");
             pWaitingToHandle = g_pTimeoutCheckListHead;
             g_pTimeoutCheckListHead = g_pTimeoutCheckListHead->pNextTimer;
             if(g_pTimeoutCheckListHead != NULL)

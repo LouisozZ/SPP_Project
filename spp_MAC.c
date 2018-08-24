@@ -637,7 +637,7 @@ uint8_t MACFrameWrite()
     //滑动窗口是否满了
     if(pLLCInstance->bIsWriteWindowsFull)
     {
-        printf("\nthe slide window have been full!\n");
+        //printf("\nthe slide window have been full!\n");
         return 0;
     }
 
@@ -698,11 +698,15 @@ uint8_t MACFrameWrite()
         else
             pLLCInstance->bIsWriteWindowsFull = false;
 
+        printf("\nmac.c 701\n");
         SPIWriteBytes(pLLCInstance,pSingleMACFrame->pFrameBuffer,pSingleMACFrame->nFrameLength,0);
-        if(pSingleMACFrame->bIsLastFragment)//最后一片，设置重发超时
+        if(pSendLLCFrame->bIsLastFragment)//最后一片，设置重发超时
         {
+            printf("\nmac.c 705\n");
             SetTimer(TIMER2_SENDTIMEOUT,RESEND_FINIAL_FRAME_TIMEOUT,true,Timer2_FinialResendTimeout,(void*)pLLCInstance);//RESEND_TIMEOUT
+            printf("\nmac.c 707\n");
         }
+        printf("\nmac.c 709\n");
         return 0;
     }//控制帧优先级最高，直接发送
     else
