@@ -86,7 +86,7 @@ void* SendData_thread(void *parameter)
 
     struct sockaddr_in service_address;
 
-    g_client_sock = socket(AF_INET,SOCK_STREAM,0);
+    g_client_sock = socket(AF_INET,SOCK_DGRAM,0);
 
     memset(&service_address,0,sizeof(service_address));
     //service_address.sin_addr.s_addr = inet_addr(DISTINATION_IP_ADDRESS);
@@ -127,8 +127,8 @@ void* RecvData_thread(void *parameter)
 
     //struct sockaddr_in service_address,client_address;
     tLLCInstance *pLLCInstance;
-    //int service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
-    g_service_sock = socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);
+    //int service_sock = socket(AF_INET,SOCK_DGRAM,IPPROTO_TCP);
+    g_service_sock = socket(AF_INET,SOCK_DGRAM,IPPROTO_TCP);
 
     memset(&g_service_address,0,sizeof(g_service_address));
     g_service_address.sin_addr.s_addr = inet_addr(LOCAL_IP_ADDRESS);
