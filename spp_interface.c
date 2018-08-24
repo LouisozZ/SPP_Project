@@ -93,20 +93,23 @@ int SendMessage(void* pSendMessage)
     uint32_t nMessageLength;
     uint8_t nMessagePriority;
     uint32_t nSentBytes;
-    tMessageStruct* pSendMessageWithStruct;
+    uint8_t *pDataToSend = (uint8_t*)pSendMessage;
+    //tMessageStruct* pSendMessageWithStruct;
 
-    pSendMessageWithStruct = (tMessageStruct*)pSendMessage;
+    //pSendMessageWithStruct = (tMessageStruct*)pSendMessage;
 
     // nMessageLength = *(uint32_t*)(pSendMessage + 1);
     // nMessagePriority = *(uint8_t*)(pSendMessage);
-    nMessageLength = pSendMessageWithStruct->nMessagelen;
-    nMessagePriority = pSendMessageWithStruct->nMessagePriority;
+    //nMessageLength = pSendMessageWithStruct->nMessagelen;
+    nMessageLength = *(uint16_t*)(pDataToSend + 1);
+    //nMessagePriority = pSendMessageWithStruct->nMessagePriority;
+    nMessagePriority = *(pDataToSend);
 
     g_sSPPInstance->nNextMessageHeader = CONNECT_SEND_RECV_MESSAGE;
 
     printf("\nnMessageLength : %d\nnMessagePriority : %d\n",nMessageLength,nMessagePriority);
 
-    nSentBytes = LLCFrameWrite((uint8_t*)pSendMessage,nMessageLength,nMessagePriority,true);
+    nSentBytes = LLCFrameWrite((uint8_t*)pDataToSend,nMessageLength,nMessagePriority,true);
     if(nSentBytes == nMessageLength)
         return 1;
     else return 0;

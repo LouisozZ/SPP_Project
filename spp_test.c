@@ -58,9 +58,9 @@ void* User_Thread(void* parameter)
         return ;
     }
 
-    void *pSendData;
+    uint8_t *pSendData;
     uint32_t nSendDataLen;
-    tMessageStruct* pSendMessage;
+    uint8_t* pSendMessage;
     uint32_t nWaiting = 1;
 
     ConnectToMCU();
@@ -82,18 +82,23 @@ void* User_Thread(void* parameter)
     }
     {
         printf("\nsend data 1\n");
-        nSendDataLen = 9;
-        pSendMessage = (tMessageStruct*)CMALLOC(sizeof(tMessageStruct));
-        pSendMessage->pMessageData = (uint8_t*)CMALLOC(sizeof(uint8_t)*nSendDataLen);
-        pSendMessage->nMessagelen = sizeof(*(tMessageStruct*)(pSendMessage));
-        printf("\npSendMessage->nMessagelen : %d\n",pSendMessage->nMessagelen);
-        pSendMessage->nMessagePriority = 3;
-        for(uint8_t index = 0;index < nSendDataLen;index++)
+        nSendDataLen = 90;
+        pSendMessage = (uint8_t*)CMALLOC(sizeof(nSendDataLen));
+        pSendData = pSendMessage;
+        //priority
+        *(uint8_t*)pSendData = 3;
+        pSendData++;
+        //length
+        *(uint16_t*)pSendData = 90;
+        pSendData += 2;
+        printf("\npSendMessage len : %d\n",*(uint16_t*)(pSendMessage+1));
+        
+        for(uint8_t index = 3;index < nSendDataLen;index++)
         {
-            *((uint8_t*)(pSendMessage->pMessageData + index)) = index;
+            *((uint8_t*)(pSendMessage + index)) = index;
         }
         printf("\nsend data 2\nThe message is as flow : \n");
-        for(uint8_t index = 0;index < pSendMessage->nMessagelen;index++)
+        for(uint8_t index = 0;index < nSendDataLen;index++)
         {
             printf("0x%02x ",*(uint8_t*)(pSendMessage + index));
         }
