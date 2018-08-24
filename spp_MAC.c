@@ -9,7 +9,7 @@ static void Timer2_FinialResendTimeout(void *pParameter)
     return;
 }
 
-static void Timer3_ACKTimeout(void* pParameter)
+void Timer3_ACKTimeout(void* pParameter)
 {
     for(int index = 0; index < PRIORITY; index++)
     {
@@ -474,7 +474,7 @@ tLLCInstance* MACFrameRead()
                 g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
                 SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
             }
-            //SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
+            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
                 
             if(*(pDataRemovedZero + 2) > g_sSPPInstance->nWindowSize)
             {

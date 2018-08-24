@@ -86,6 +86,8 @@ uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader)
         {
             //g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LLC_RESET;
             g_sSPPInstance->nConnectStatus = CONNECT_STATU_CONNECTED;
+            CancelTimerTask(TIMER_0_CONNECT,CANCEL_MODE_IMMEDIATELY);
+            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
             g_sSPPInstance->nNextMessageHeader = CONNECT_CONFIRM_AGAIN;
             LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
             //等待对方发送reset帧，初始化LLC层
@@ -107,6 +109,8 @@ uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader)
             //发送reset帧，初始化LLC层
             //g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_RST;
             g_aLLCInstance[0]->nNextCtrlFrameToSend = CONNECT_IDLE;
+            CancelTimerTask(TIMER_1_CONNECT_CONFIRM,CANCEL_MODE_IMMEDIATELY);
+            SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);            
             //在状态为 CONNECT_STATU_WAITING_LLC_UA 并且收到了 ua 帧的情况下，连接状态为已连接 CONNECT_STATU_CONNECTED
         }
         else if(nMessageHeader == CONNECT_REQUIRE_CONNECT)      //响应的确认建立连接帧丢失，对方重发了请求帧
@@ -151,6 +155,11 @@ uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader)
             LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
             //关闭所有的定时任务
             CancleAllTimerTask();
+        }
+        else if(nMessageHeader == CONNECT_REQUIRE_CONNECT)
+        {
+            g_sSPPInstance->nNextMessageHeader = CONNECT_CONFIRM_CONNECT;
+            LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
         }
         else 
         {

@@ -55,6 +55,7 @@ typedef struct tLLCWriteContext
 {
    uint8_t*                        pFrameBuffer;
    uint32_t                        nFrameLength;
+   bool                            bIsLastFragment;
 
    LLCFrameWriteCompleted*         pCallbackFunction;
    void*                           pCallbackParameter;

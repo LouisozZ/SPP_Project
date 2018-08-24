@@ -45,5 +45,5 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
 uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance);
 uint8_t static_ResetLLC();
 void DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader);
-
+void Timer3_ACKTimeout(void* pParameter);
 #endif

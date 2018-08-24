@@ -330,8 +330,11 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
 
     while(nRemainingPayload > 0)
     {
+        pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
+
         if(nRemainingPayload > LLC_FRAME_MAX_DATA_LENGTH)
         {
+            pLLCWriteContext->bIsLastFragment = false;
             //+4 LEN LLCHEADER PACKAGEHEADER 预留一个 CRC 
             pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH));
             *pSingleLLCFrame = (uint8_t)(LLC_FRAME_MAX_DATA_LENGTH + 2);
@@ -345,6 +348,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         }
         else
         {
+            pLLCWriteContext->bIsLastFragment = true;
             pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nRemainingPayload + 4));
             *pSingleLLCFrame = (uint8_t)(nRemainingPayload + 2);
             //Package head
@@ -372,7 +376,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
                 *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *pSendMessageAddress++;
         }
         
-        pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
+        
 
         pLLCWriteContext->pFrameBuffer = pSingleLLCFrame;
         pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;//total length conclude len and crc
