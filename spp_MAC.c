@@ -1,5 +1,15 @@
 #include "spp_global.h"
 
+static int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
+{
+    for(int index = 0; index < PRIORITY; index++)
+    {
+        if(g_aLLCInstance[index] == pLLCInstance)
+            return index;
+    }
+    return -1;
+}
+
 static void Timer2_FinialResendTimeout(void *pParameter)
 {
     printf("\ntimer2 timeout\n");
@@ -15,8 +25,8 @@ void Timer3_ACKTimeout(void* pParameter)
     {
         if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)
             g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
-        if(g_aLLCInstance[index]->bIsWaitingLastFragment)
-            g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
+        // if(g_aLLCInstance[index]->bIsWaitingLastFragment)
+        //     g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
     }
     return;
 }
@@ -637,9 +647,22 @@ uint8_t MACFrameWrite()
         return 0;
     }
     //滑动窗口是否满了
+    int npLLCnum = 0;
     if(pLLCInstance->bIsWriteWindowsFull)
     {
-        printf("\nthe slide window have been full!\n");
+        // npLLCnum = GetPriorityBypLLCInstance(pLLCInstance);
+        // if(npLLCnum != -1)
+        // {
+        //     printf("\npLLCInstance[%d] : the slide window have been full!\n",npLLCnum);
+        //     printf("\npLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",npLLCnum,pLLCInstance->nWriteNextToSendFrameId);
+        //     printf("\npLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",npLLCnum,pLLCInstance->nWriteNextWindowFrameId);
+        //     printf("\npLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",npLLCnum,pLLCInstance->nWriteLastAckSentFrameId);
+        // }
+        if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
+            pLLCInstance->bIsWriteWindowsFull = true;
+        else
+            pLLCInstance->bIsWriteWindowsFull = false;
+        MACFrameWrite();
         return 0;
     }
 
@@ -874,6 +897,10 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nOtherWantToRecvNextId);
         return true;
     }
+    if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
+        pLLCInstance->bIsWriteWindowsFull = true;
+    else
+        pLLCInstance->bIsWriteWindowsFull = false;
     return false;
 }
 
