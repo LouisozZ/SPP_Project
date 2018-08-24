@@ -15,6 +15,8 @@ void Timer3_ACKTimeout(void* pParameter)
     {
         if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)
             g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
+        if(g_aLLCInstance[index]->bIsWaitingLastFragment)
+            g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
     }
     return;
 }
@@ -637,7 +639,7 @@ uint8_t MACFrameWrite()
     //滑动窗口是否满了
     if(pLLCInstance->bIsWriteWindowsFull)
     {
-        //printf("\nthe slide window have been full!\n");
+        printf("\nthe slide window have been full!\n");
         return 0;
     }
 
