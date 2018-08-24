@@ -13,7 +13,8 @@ void Timer3_ACKTimeout(void* pParameter)
 {
     for(int index = 0; index < PRIORITY; index++)
     {
-        g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
+        if(g_aLLCInstance[index]->nWriteNextToSendFrameId > g_aLLCInstance[index]->nWriteLastAckSentFrameId + 1)
+            g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
     }
     return;
 }
