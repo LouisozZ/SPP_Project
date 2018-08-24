@@ -188,7 +188,7 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
 // #endif
     int nReadBytes = 0;
     //nReadBytes = recv(g_service_communicate_fd,(void*)pBuffer,nReadLength,0);
-    nReadBytes = recvfrom(g_service_communicate_fd,(void*)pBuffer,nReadLength,0,(struct sockaddr*)&g_client_address,&g_client_add_len);
+    nReadBytes = recvfrom(g_service_sock,(void*)pBuffer,nReadLength,0,(struct sockaddr*)&g_client_address,&g_client_add_len);
     //g_service_communicate_fd = accept(g_service_sock,(struct sockaddr*)&g_client_address,&g_client_add_len);
     if(nReadBytes <= 0)
         return 0;
