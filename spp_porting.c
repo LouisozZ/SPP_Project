@@ -129,7 +129,7 @@ void* RecvData_thread(void *parameter)
     //struct sockaddr_in service_address,client_address;
     tLLCInstance *pLLCInstance;
     //int service_sock = socket(AF_INET,SOCK_DGRAM,IPPROTO_TCP);
-    g_service_sock = socket(AF_INET,SOCK_DGRAM,IPPROTO_TCP);
+    g_service_sock = socket(AF_INET,SOCK_DGRAM,0);
 
     memset(&g_service_address,0,sizeof(g_service_address));
     g_service_address.sin_addr.s_addr = inet_addr(LOCAL_IP_ADDRESS);
