@@ -244,7 +244,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     {
         g_sSPPInstance->bIsMessageReady = false;
         pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength); 
-        
+        pBuffer++;  //跳过第一个长度字节
         //nReadLastAcknowledgedFrameId 是我已经给对方发送了的已经接受的确认信息
         nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
         
@@ -257,6 +257,12 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         else if( nNonAcknowledgedFrameNumber == 1 )
         {
             printf("\nalready read the last frame or other side haven't send frame.\n");
+        }
+
+        for(int index = 2; index < nThisLLCFrameLength; index++)
+        {
+            *(g_sSPPInstance->pMessageBuffer + g_sSPPInstance->nMessageLength) = pBuffer[index];
+            g_sSPPInstance->nMessageLength += 1;
         }
 
         if((pBuffer[1] & 0x80) == 0)
@@ -272,16 +278,14 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             g_sSPPInstance->bIsMessageReady = true;
             //把一帧 LLC 帧解析成message向上传递
         }
-        for(int index = 2; index < nThisLLCFrameLength; index++)
-        {
-            *(g_sSPPInstance->pMessageBuffer + g_sSPPInstance->nMessageLength) = pBuffer[index];
-            g_sSPPInstance->nMessageLength += 1;
-        }
+        
     }  
     else
     {
         //上层的message结构不为空，还没有把消息读走，不能写入到，不对消息帧做处理
-        printf("\nmessage still in buffer\n");
+        printf("\n^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^\n");
+        printf("Message still in buffer!!!");
+        printf("\n^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^\n");
         return 0;
     }
     printf("\nCFREE(pBuffer)\n");

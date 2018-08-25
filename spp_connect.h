@@ -8,8 +8,8 @@
 #define TIMER_1_CONNECT_CONFIRM TIMER_1
 
 #define RESENT_CONNECT_REQUIRE_TIMEOUT      10000
-#define RESENT_CONFIRM_CONNECT_TIMEOUT      150
-#define RESENT_DIS_RESET_CONNECT_TIMEOUT    200
+#define RESENT_CONFIRM_CONNECT_TIMEOUT      5000
+#define RESENT_DIS_RESET_CONNECT_TIMEOUT    2000
 
 uint8_t ConnectErrorFrameHandle(uint8_t nMessageHeader);
 uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader);
