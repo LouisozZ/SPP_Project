@@ -46,7 +46,7 @@ int ConnectToMCU()
     //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
     printf("\nConnecting to the other side ...\n");
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
-    
+    static_ResetWindowSendRecv(g_aLLCInstance[0],g_sSPPInstance->nWindowSize);
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LINK_CONFIRM;
