@@ -223,6 +223,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
 {
     tLLCInstance* pLLCInstance = pLLCInstanceWithPRI;
     uint8_t* pBuffer = NULL;
+    uint8_t* pBufferForFree = pBuffer;
     uint8_t nThisLLCFrameLength = 0;
     uint32_t nReceivedFrameId = 0;
     uint32_t nNonAcknowledgedFrameNumber;
@@ -288,10 +289,10 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         printf("\n^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^\n");
         return 0;
     }
-    printf("\nCFREE(pBuffer)\n");
-    CFREE(pBuffer);
-   MACFrameWrite();
-   return;
+    printf("\nCFREE(pBufferForFree)\n");
+    CFREE(pBufferForFree);
+    MACFrameWrite();
+    return;
 }
 
 uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority,bool bIsData)

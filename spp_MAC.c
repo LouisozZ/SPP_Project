@@ -515,13 +515,13 @@ tLLCInstance* MACFrameRead()
             //===========================================
             //      更新相关的 ID 数据，及时响应发送方
             //===========================================
-            printf("Befor deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
+            printf("Befor deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
             if(!DealIDProblemForIFrame(pLLCInstance,nCtrlHeader))
             {
                 printf("\nDealIDProblemForIFrame() error !\n");
                 return NULL;
             }
-            printf("After deal ID , the 0x%08x->nReadNextToReceivedFrameId : 0x%08x",pLLCInstance,pLLCInstance->nReadNextToReceivedFrameId);
+            printf("After deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
             //===========================================   
                 
             //g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
@@ -611,6 +611,12 @@ tLLCInstance* MACFrameRead()
 
 uint8_t MACFrameWrite()
 {
+    if(g_sMACInstance->bIsWriteFramePending)
+    {
+        printf("\nThe wirte mechine is pending!\n");
+        return 0;
+    }
+
     //取得优先级最高的LLC实体，把它的写链表中最早的数据写到滑动窗口上
     //printf("\nMACFrameWrite\n");
     uint8_t nInsertedZeroFrameLength = 0;
@@ -623,6 +629,9 @@ uint8_t MACFrameWrite()
     uint8_t nCRC = 0;
     int nPriority;
     //the connect ctrl frame belong to priority 0, so if there is any connect ctrl frame, is must be found firstly
+    
+    g_sMACInstance->bIsWriteFramePending = true;
+
     for(nPriority = 0; nPriority < PRIORITY; nPriority++)
     {
         if((g_aLLCInstance[nPriority]->pLLCFrameWriteListHead != NULL) || (g_aLLCInstance[nPriority]->nNextCtrlFrameToSend != READ_CTRL_FRAME_NONE))
@@ -634,6 +643,7 @@ uint8_t MACFrameWrite()
     if(pLLCInstance == NULL)
     {
         //printf("\nthere is no frame to send!\n");
+        g_sMACInstance->bIsWriteFramePending = false;
         return 0;
     }
     //滑动窗口是否满了
@@ -644,16 +654,11 @@ uint8_t MACFrameWrite()
         {
             pLLCInstance->bIsWriteWindowsFull = true;
             //printf("\ng_sSPPInstance[%d] : The slide window is full!\n",GetPriorityBypLLCInstance(pLLCInstance));
+            g_sMACInstance->bIsWriteFramePending = false;
             return 0;
         }    
         else
             pLLCInstance->bIsWriteWindowsFull = false;
-    }
-
-    if(g_sMACInstance->bIsWriteFramePending)
-    {
-        printf("\nThe wirte mechine is pending!\n");
-        return 0;
     }
 
     if(pLLCInstance->nNextCtrlFrameToSend == READ_CTRL_FRAME_NONE)
@@ -667,7 +672,6 @@ uint8_t MACFrameWrite()
             pSingleMACFrame->nFrameLength = 0;
         }
         pSendLLCFrame = pLLCInstance->pLLCFrameWriteListHead;
-        
         //(pSendLLCFrame->nFrameLength + 3)
         pSingleMACFrame->pFrameBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*MAC_FRAME_MAX_LENGTH);
         
@@ -687,7 +691,6 @@ uint8_t MACFrameWrite()
             printf("0x%02x ",*(pSendLLCFrame->pFrameBuffer + index));
         printf("\n");
         nInsertedZeroFrameLength = static_InsertZero(pSendLLCFrame->pFrameBuffer,pSingleMACFrame->pFrameBuffer+1,pSendLLCFrame->nFrameLength);
-        
         *(pSingleMACFrame->pFrameBuffer + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
         //len + 2 : SOF EOF
         pSingleMACFrame->nFrameLength = nInsertedZeroFrameLength + 2;
@@ -712,6 +715,7 @@ uint8_t MACFrameWrite()
         {
             SetTimer(TIMER2_SENDTIMEOUT,RESEND_FINIAL_FRAME_TIMEOUT,true,Timer2_FinialResendTimeout,(void*)pLLCInstance);//RESEND_TIMEOUT
         }
+        g_sMACInstance->bIsWriteFramePending = false;
         return 0;
     }//控制帧优先级最高，直接发送
     else
@@ -797,6 +801,7 @@ uint8_t MACFrameWrite()
         CFREE(pCtrlFrameData);
         
         pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_NONE;
+        g_sMACInstance->bIsWriteFramePending = false;
         return 0;
     }
 }
@@ -906,7 +911,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
 uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame)
 {
     tMACWriteContext* pSendMACFrame = NULL;
-    g_sMACInstance->bIsWriteFramePending = true;
+    
 
     printf("Befor SPIWriteBytes(),g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
 
@@ -923,7 +928,6 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
         if(pLLCInstance->nWriteNextWindowFrameId == 0)
             static_AvoidCounterSpin(pLLCInstance);
     }
-    g_sMACInstance->bIsWriteFramePending = false;
 
     printf("After SPIWriteBytes(),g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
 

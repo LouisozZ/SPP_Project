@@ -247,12 +247,14 @@ uint8_t INIT_LOCK()
 
 void LOCK_WRITE()
 {
+    printf("\nlocking...\n");
     pthread_mutex_lock(&nWtirelist);
     return;
 }
 
 void UNLOCK_WRITE()
 {
+    printf("\nunlocking\n");
     pthread_mutex_unlock(&nWtirelist);
     return;
 }
