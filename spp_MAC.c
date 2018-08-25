@@ -637,7 +637,7 @@ uint8_t MACFrameWrite()
         if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
         {
             pLLCInstance->bIsWriteWindowsFull = true;
-            printf("\nThe slide window is full!\n");
+            //printf("\ng_sSPPInstance[%d] : The slide window is full!\n",GetPriorityBypLLCInstance(pLLCInstance));
             return 0;
         }    
         else
@@ -789,8 +789,7 @@ uint8_t MACFrameWrite()
         SPIWriteBytes(pLLCInstance,pCtrlFrameData,nCtrlFrameLength,1);
         printf("\nCFREE(pCtrlFrameData)\n");
         CFREE(pCtrlFrameData);
-        printf("\nCFREE(pCtrlLLCHeader)\n");
-        CFREE(pCtrlLLCHeader);
+        
         pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_NONE;
         return 0;
     }
