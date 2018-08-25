@@ -251,7 +251,7 @@ bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
 
     //nReceivedFrameId = (nLLCHeader >> 3) & 0x07;
     nReceivedFrameId = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader >> 3) & 0x07);
-    if(!((nReceivedFrameId > nWriteLastACKId) && (nReceivedFrameId <= nWriteNextToSendId)))
+    if(!((nReceivedFrameId > pLLCInstance->nWriteLastAckSentFrameId) && (nReceivedFrameId <= pLLCInstance->nWriteNextToSendFrameId)))
         return false;
     /* build a RR frame with the same "next to receive identifier" */
     nLLCHeader &= 0x07;
