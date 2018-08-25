@@ -39,7 +39,7 @@ void Timer3_ACKTimeout(void* pParameter)
 {
     for(int index = 0; index < PRIORITY; index++)
     {
-        if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)
+        if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > (g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1))
             g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
         // if(g_aLLCInstance[index]->bIsWaitingLastFragment)
         //     g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
@@ -267,7 +267,7 @@ bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
     {
         printf("\n^^^^^^^^^^^^^^^^  Reject  ^^^^^^^^^^^^^^^^^^^^^^^\n");
         printf("nReceivedFrameId : \n0x%08x\n",nReceivedFrameId);
-        printf("\npLLCInstance->nReadNextToReceivedFrameId : \n0x%08x",pLLCInstance->nReadNextToReceivedFrameId);
+        printf("\npLLCInstance[%d]->nReadNextToReceivedFrameId : \n0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
         printf("\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
 
         pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_REJ;
@@ -829,7 +829,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     {
         nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;        
         pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
-        printf("\nRR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        printf("\nRR : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
@@ -842,7 +842,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         }
         //##解锁
         printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%08x\n",nOtherWantToRecvNextId);
-        return true;
+        
     }//REJ帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_REJ)
     {
@@ -861,12 +861,12 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         }
         //##解锁
         pLLCInstance->nWriteNextWindowFrameId = nOtherWantToRecvNextId;
-        printf("\nREJ : 0x%08x ->nWriteNextToSendFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextToSendFrameId);
-        printf("\nREJ : 0x%08x ->nWriteNextWindowFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
-        printf("\nREJ : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        printf("\nREJ : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
+        printf("\nREJ : g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
+        printf("\nREJ : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         printf("\n-------------->REJ : update NextWindowToSend\t\tN(R) : 0x%02x\n",nOtherWantToRecvNextId);
-        return true;
+        
     }//RNR帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_RNR)
     {
@@ -875,7 +875,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
         
         pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
-        printf("\nRNR : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
+        printf("\nRNR : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         //##加锁
         for(int times = 0; times < nAckedFrameNum; times++)
@@ -888,13 +888,13 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         }
         //##解锁
         printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nOtherWantToRecvNextId);
-        return true;
+        
     }
     if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
         pLLCInstance->bIsWriteWindowsFull = true;
     else
         pLLCInstance->bIsWriteWindowsFull = false;
-    return false;
+    return true;
 }
 
 uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame)
@@ -902,7 +902,7 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
     tMACWriteContext* pSendMACFrame = NULL;
     g_sMACInstance->bIsWriteFramePending = true;
 
-    printf("Befor SPIWriteBytes(),0x%08x->nWriteNextWindowFrameId : 0x%08x",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
+    printf("Befor SPIWriteBytes(),g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
 
     if(bIsCtrlFrame)
     {
@@ -919,7 +919,7 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
     }
     g_sMACInstance->bIsWriteFramePending = false;
 
-    printf("After SPIWriteBytes(),0x%08x->nWriteNextWindowFrameId : 0x%08x",pLLCInstance,pLLCInstance->nWriteNextWindowFrameId);
+    printf("After SPIWriteBytes(),g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
 
     return 0;
 }
