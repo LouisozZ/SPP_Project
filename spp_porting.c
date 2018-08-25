@@ -149,9 +149,9 @@ void* RecvData_thread(void *parameter)
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
         {
-            printf("\nREJ : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
-            printf("\nREJ : g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
-            printf("\nREJ : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
+            printf("\nRecv : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
+            printf("\nRecv : g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
+            printf("\nRecv : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
             LLCReadFrame(pLLCInstance);
         }
              

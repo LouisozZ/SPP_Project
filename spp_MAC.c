@@ -27,6 +27,7 @@ static void Timer2_FinialResendTimeout(void *pParameter)
             if(g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead->bIsLastFragment)
             {
                 //最后一片的发送超时
+                printf("g_aLLCInstance[%d]->pLLCFrameWriteCompletedListHead is bIsLastFragment",index);
                 g_aLLCInstance[index]->nWriteNextWindowFrameId = g_aLLCInstance[index]->nWriteLastAckSentFrameId + 1;
                 return ;
             }
@@ -37,6 +38,7 @@ static void Timer2_FinialResendTimeout(void *pParameter)
 
 void Timer3_ACKTimeout(void* pParameter)
 {
+    printf("\ntimer3 timeout\n");
     for(int index = 0; index < PRIORITY; index++)
     {
         if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > (g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1))

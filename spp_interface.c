@@ -43,14 +43,23 @@ int ConnectToMCU()
         printf("\n\nConnect Timeout!\n\n");
         return -1;
     }
-    //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
-    printf("\nConnecting to the other side ...\n");
-    g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
-    static_ResetWindowSendRecv(g_aLLCInstance[0],g_sSPPInstance->nWindowSize);
-    LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     
-    g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LINK_CONFIRM;
-    SetTimer(TIMER_0_CONNECT,RESENT_CONNECT_REQUIRE_TIMEOUT,true,Timer0_RequireConnectTimeout,NULL);
+    if(g_aLLCInstance[0]->nWriteNextWindowFrameId != (g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1))
+    {
+        g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
+        SetTimer(TIMER_0_CONNECT,RESENT_CONNECT_REQUIRE_TIMEOUT,true,Timer0_RequireConnectTimeout,NULL);
+    }
+    else
+    {
+        //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
+        printf("\nConnecting to the other side ...\n");
+        g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
+        LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
+
+        g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LINK_CONFIRM;
+        SetTimer(TIMER_0_CONNECT,RESENT_CONNECT_REQUIRE_TIMEOUT,true,Timer0_RequireConnectTimeout,NULL);
+    }
+    
     return 0;
 }
 
