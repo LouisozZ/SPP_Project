@@ -109,7 +109,7 @@ int SendMessage(void* pSendMessage)
 
     printf("\nnMessageLength : %d\nnMessagePriority : %d\n",nMessageLength,nMessagePriority);
 
-    nSentBytes = LLCFrameWrite((uint8_t*)pDataToSend,nMessageLength,nMessagePriority,true);
+    nSentBytes = LLCFrameWrite(pDataToSend,nMessageLength,nMessagePriority,true);
     if(nSentBytes == nMessageLength)
         return 1;
     else return 0;

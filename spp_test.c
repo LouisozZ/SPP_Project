@@ -89,7 +89,7 @@ void* User_Thread(void* parameter)
         *(uint8_t*)pSendData = 3;
         pSendData++;
         //length
-        *(uint16_t*)pSendData = 90;
+        *(uint16_t*)pSendData = nSendDataLen;
         pSendData += 2;
         printf("\npSendMessage len : %d\n",*(uint16_t*)(pSendMessage+1));
         
@@ -110,11 +110,7 @@ void* User_Thread(void* parameter)
 
 int main()
 {
-    if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
-    {
-        printf("\nwhen set timeout handler the error occur!\n");
-        return ((void*)0);
-    }
+    
     InitSPP();
     if(!INIT_LOCK())
     {

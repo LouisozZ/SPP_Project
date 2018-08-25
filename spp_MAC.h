@@ -44,6 +44,6 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame,tLLCInstance *pLLCInstance);
 uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame);
 uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance);
 uint8_t static_ResetLLC();
-void DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader);
+bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader);
 void Timer3_ACKTimeout(void* pParameter);
 #endif

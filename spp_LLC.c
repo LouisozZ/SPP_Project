@@ -16,6 +16,7 @@ uint8_t InitLLCInstance()
         g_aLLCInstance[index]->pReadHandler = NULL;
         g_aLLCInstance[index]->pReadHandlerParameter = NULL;
         g_aLLCInstance[index]->bIsFirstFregment = true;
+        g_aLLCInstance[index]->bIsLastFragment = false;
 
         //写操作相关
         g_aLLCInstance[index]->nWindowSize = g_sSPPInstance->nWindowSize;
@@ -207,14 +208,14 @@ static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWi
 
     for(int index = 0; index < nThisLLCFrameLength; index++)
     {
-        *pBuffer++ = pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition+index+1];
+        *pBuffer++ = pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition++];
     }
 
-    if((pLLCInstance->nLLCReadReadPosition + nThisLLCFrameLength + 1) >= READ_BUFFER_SIZE)
-        pLLCInstance->nLLCReadReadPosition = pLLCInstance->nLLCReadReadPosition + nThisLLCFrameLength + 1 - READ_BUFFER_SIZE;
-    else
-        pLLCInstance->nLLCReadReadPosition = pLLCInstance->nLLCReadReadPosition + nThisLLCFrameLength + 1;
-
+    //因为 nLLCReadReadPosition 是 uint8_t 类型的，且aLLCReadBuffer[READ_BUFFER_SIZE] 最大是256，所以自加溢出自动到头部
+    // if((pLLCInstance->nLLCReadReadPosition + nThisLLCFrameLength + 1) >= READ_BUFFER_SIZE)
+    //     pLLCInstance->nLLCReadReadPosition = pLLCInstance->nLLCReadReadPosition + nThisLLCFrameLength + 1 - READ_BUFFER_SIZE;
+    // else
+    //     pLLCInstance->nLLCReadReadPosition = pLLCInstance->nLLCReadReadPosition + nThisLLCFrameLength + 1;
     return pBuffer_return;
 }
 
@@ -223,7 +224,6 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     tLLCInstance* pLLCInstance = pLLCInstanceWithPRI;
     uint8_t* pBuffer = NULL;
     uint8_t nThisLLCFrameLength = 0;
-    uint8_t nCtrlHeader;
     uint32_t nReceivedFrameId = 0;
     uint32_t nNonAcknowledgedFrameNumber;
 
@@ -233,7 +233,6 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
         return 0;
     }
 
-    bool bForceTransmit = false;
     nThisLLCFrameLength = (pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition]);
 
     CDebugAssert(pLLCInstance != NULL );
@@ -244,18 +243,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     if((g_sSPPInstance->nMessageLength == 0) || (pLLCInstance->bIsWaitingLastFragment == true))
     {
         g_sSPPInstance->bIsMessageReady = false;
-        pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength);
-        nCtrlHeader = *pBuffer;
-#ifdef DEBUG_PRINTF
-        printf("\npBuffer : ");
-        for(int index = 0; index < nThisLLCFrameLength; index++)
-        {
-            printf("0x%02x ",pBuffer[index]);
-        }
-        printf("\n");
-#endif   
-        //得到信息帧的 N(S)，放在nReceivedFrameId中
-        DealIDProblemForIFrame(pLLCInstance,nCtrlHeader);
+        pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength); 
         
         //nReadLastAcknowledgedFrameId 是我已经给对方发送了的已经接受的确认信息
         nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
@@ -271,19 +259,8 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             printf("\nalready read the last frame or other side haven't send frame.\n");
         }
 
-        /* cancel thr TIMER_T6_SHDLC_RESEND and clear flag if an I-frame
-        is received before timer expiration*/
-        // if(pLLCInstance->bIsRRFrameAlreadySent == true)
-        // {
-        //    pLLCInstance->bIsRRFrameAlreadySent = false;
-        //    /*T6是应答超时时间，如果T6时间过去了还没有收到发送帧的应答，则重发，如果收到了，则取消T6超时任务*/
-        //    //PNALMultiTimerCancel(pBindingContext, TIMER_T6_SHDLC_RESEND);
-        // }
-
-        /* If the I-frame is HCI chained, force the transmition of the next RR */
         if((pBuffer[1] & 0x80) == 0)
         {
-            bForceTransmit = true;
             printf("\n is waiting last fragment ... \n");
             pLLCInstance->bIsWaitingLastFragment = true;
             //组装一个完整的message，需要一直取 LLC 帧
@@ -300,7 +277,6 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             *(g_sSPPInstance->pMessageBuffer + g_sSPPInstance->nMessageLength) = pBuffer[index];
             g_sSPPInstance->nMessageLength += 1;
         }
-
     }  
     else
     {
@@ -365,10 +341,9 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         {
             bIsFirstFregment = false;
             *(pSingleLLCFrame + 3) = g_sSPPInstance->nNextMessageHeader;
-            g_sSPPInstance->nNextMessageHeader = CONNECT_IDLE;
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-3; nSingleLLCFrameLength++)
                 *(pSingleLLCFrame + 4 + nSingleLLCFrameLength) = *pSendMessageAddress++;
-            nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
+            //nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
         }
         else
         {
@@ -397,18 +372,21 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         pLLCInstance = GetCorrespondingLLCInstance(pSingleLLCFrame);
         //data frame add to the bottom, but the connect frame add to the head in order to be found firstly
         if(bIsData)
-            static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,0);
+            static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,ADD_TO_LIST_TAIL);
         else 
-            static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,1);
+            static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,ADD_TO_LIST_HEAD);
     }
-    return nWriteByteCount-1;//in fact the data to be sent don't have message header
+    g_sSPPInstance->nNextMessageHeader = CONNECT_IDLE;
+    return nWriteByteCount;//in fact the data to be sent don't have message header
 }
 
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength)
 {
     uint8_t nPriority = 0;
     nPriority = (*(pLLCFrameWithLength+2) & PRIORITY_MASK);
-    CDebugAssert(nPriority < PRIORITY);
+    if(nPriority >= PRIORITY)
+        return NULL;
+
     return g_aLLCInstance[nPriority];
 }
 
