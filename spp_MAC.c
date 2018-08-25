@@ -1,6 +1,6 @@
 #include "spp_global.h"
 
-static int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
+int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
 {
     for(int index = 0; index < PRIORITY; index++)
     {

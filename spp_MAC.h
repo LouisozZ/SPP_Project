@@ -46,4 +46,5 @@ uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance);
 uint8_t static_ResetLLC();
 bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader);
 void Timer3_ACKTimeout(void* pParameter);
+int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance);
 #endif

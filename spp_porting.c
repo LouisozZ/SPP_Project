@@ -148,8 +148,13 @@ void* RecvData_thread(void *parameter)
         //printf("");
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
+        {
+            printf("\nREJ : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
+            printf("\nREJ : g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
+            printf("\nREJ : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
             LLCReadFrame(pLLCInstance);
-            
+        }
+             
         for(int index = 0; index < PRIORITY; index++)
             LLCReadFrame(g_aLLCInstance[index]);
     }
@@ -202,6 +207,7 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
             printf("0x%02x ",*(uint8_t*)(pBuffer+index));
         printf("\n\n**************************************\n");
         printf("\nCONNECT_STATU is : 0x%02x\n\n",g_sSPPInstance->nConnectStatus);
+
         return nReadBytes;
     }
 }
