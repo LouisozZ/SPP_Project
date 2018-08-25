@@ -46,7 +46,9 @@ int ConnectToMCU()
     //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
     printf("\nConnecting to the other side ...\n");
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
+    printf("\n1\n");
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
+    printf("\n2\n");
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_LINK_CONFIRM;
     SetTimer(TIMER_0_CONNECT,RESENT_CONNECT_REQUIRE_TIMEOUT,true,Timer0_RequireConnectTimeout,NULL);
     return 0;

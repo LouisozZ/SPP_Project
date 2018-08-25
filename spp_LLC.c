@@ -343,7 +343,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             *(pSingleLLCFrame + 3) = g_sSPPInstance->nNextMessageHeader;
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-3; nSingleLLCFrameLength++)
                 *(pSingleLLCFrame + 4 + nSingleLLCFrameLength) = *pSendMessageAddress++;
-            //nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
+            nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
         }
         else
         {
@@ -377,7 +377,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             static_AddToWriteContextList(pLLCInstance,pLLCWriteContext,ADD_TO_LIST_HEAD);
     }
     g_sSPPInstance->nNextMessageHeader = CONNECT_IDLE;
-    return nWriteByteCount;//in fact the data to be sent don't have message header
+    return nWriteByteCount-1;//in fact the data to be sent don't have message header
 }
 
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength)
