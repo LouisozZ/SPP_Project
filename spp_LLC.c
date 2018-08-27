@@ -237,8 +237,22 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
 
     nThisLLCFrameLength = (pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition]);
 
-    CDebugAssert(pLLCInstance != NULL );
-    CDebugAssert(nThisLLCFrameLength >= 1);
+    //CDebugAssert(pLLCInstance != NULL );
+    if(pLLCInstance == NULL)
+    {
+        printf("\npLLCInstance == NULL!\n");
+        return 0;
+    }
+    //CDebugAssert(nThisLLCFrameLength >= 1);
+    if(nThisLLCFrameLength < 1)
+    {
+        printf("\nnThisLLCFrameLength < 1 !\n");
+        printf("\ng_aLLCInstance[%d]->nLLCReadReadPosition : %d\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nLLCReadReadPosition);
+        printf("\npLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition] : %d\n",pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition]);
+        printf("\nnThisLLCFrameLength : %d\n",nThisLLCFrameLength);
+
+        return 0;
+    }
 
     //上层的message结构为空，已经把消息读走，可以写入
     //在等待分片，组织成完整一帧，可以写入
