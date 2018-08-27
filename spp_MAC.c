@@ -263,6 +263,13 @@ bool CheckReadBufferFree(tLLCInstance* pLLCInstance)
     }
 }
 
+/**
+ * @function    处理接收到数据帧后的 ID 变化
+ * @parameter1  对应优先级实体
+ * @parameter2  LLC Header
+ * @return      true    成功更新了 ID 
+ *              false   更新 ID 失败
+*/
 bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
 {
     uint8_t nReceivedFrameId;
@@ -331,6 +338,7 @@ tLLCInstance* MACFrameRead()
 
     uint8_t nCtrlHeader;
 
+    //初始化 MAC 帧读状态机，g_sMACInstance->nMACReadStatu 的状态值，只能在这里被设置为 WAITING_HEADER
     g_sMACInstance->nMACReadStatu = MAC_FRAME_READ_STATUS_WAITING_HEADER;
     g_sMACInstance->nMACReadCRC = 0;
 
@@ -338,15 +346,18 @@ tLLCInstance* MACFrameRead()
     CDebugAssert(g_sMACInstance->nMACReadStatu != MAC_FRAME_READ_STATUS_IDLE);
 
     nStatus = g_sMACInstance->nMACReadStatu;
+    //MAC 读缓存的读取起始位置，如果一次读取的多个字节中，读到了 EOF 之后还有剩余的字节，下一次需要从这里开始读取 MAC 帧
     nReadPosition = g_sMACInstance->nMACReadPosition;
     nByteCount = 0;
     nReadBufferCount = g_sMACInstance->nMACReadFrameRemaining;
+    //g_sMACInstance->aMACReadFrameBuffer 的值不被更新，一直保存的是 MAC 读缓存的起始地址
     pReadBuffer = g_sMACInstance->aMACReadFrameBuffer;
     CDebugAssert(pReadBuffer != NULL);
+    //根据读缓存的读取起始位置来重定位缓存区
     pReadBuffer += nReadPosition;
 
     
-      //只要读状态机的状态不是空闲
+    //只要读状态机的状态不是空闲
     while(nStatus != MAC_FRAME_READ_STATUS_IDLE)
     {
         //如果读缓冲区为空，则调用一次读函数 ReadBytes()，并将实际读到的字节数保存在变量pReadBuffer中
@@ -373,6 +384,7 @@ tLLCInstance* MACFrameRead()
         //nReadPosition aMACReadFrameBuffer要读取的下一字节位置
         nReadPosition++;
         
+        //MAC 读状态机
         switch(nStatus)
         {
             case MAC_FRAME_READ_STATUS_WAITING_HEADER:
@@ -401,7 +413,7 @@ tLLCInstance* MACFrameRead()
                         bError = true;
                         break;
                     }
-                    //如果正确处理了最后一帧，设置读状态机的状态为空闲
+                    //如果正确地读到了最后一字节，设置读状态机的状态为空闲
                     nStatus = MAC_FRAME_READ_STATUS_IDLE;                
                 }
                 else     //有效载荷数据
@@ -440,18 +452,20 @@ tLLCInstance* MACFrameRead()
             }
         }
     } // while() 
+    //更新 MAC 读状态机
     g_sMACInstance->nMACReadFrameRemaining = nReadBufferCount;
     g_sMACInstance->nMACReadStatu = nStatus;
     g_sMACInstance->nMACReadPosition = nReadPosition;
+    
     //MAC帧要做去0处理的字节数 = nByteCount - 2;去掉 SOF 和 EOF
-    //把执行了插 0 操作的 LLC 帧复原，然后根据优先级字段选择合适的处理实体。
     pDataRemovedZero = (uint8_t*)CMALLOC(sizeof(uint8_t)*(nByteCount - 2));
-
+    //做去 0 处理
     if((nLength = static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2))) == 0)
     {
         printf("\nbit error!\n");
         return NULL;
     }
+    //校验 crc
     g_sMACInstance->nMACReadCRC = 0;
     for(int index = 0; index < *pDataRemovedZero + 1; index++)
     {
@@ -463,12 +477,12 @@ tLLCInstance* MACFrameRead()
         printf("\nCRC error!\n");
         return NULL;
     }
-#ifndef DEBUG_PRINTF
+    #ifndef DEBUG_PRINTF
     printf("\npDataRemovedZero : ");
     for(int index = 0; index < nLength; index++)
         printf("0x%02x ",*(pDataRemovedZero + index));
     printf("\n\n");
-#endif
+    #endif
 
 //=======================对帧进行判断，如果是控制帧，立马处理，如果是信息帧，丢到读缓冲   ====================
     
@@ -478,11 +492,13 @@ tLLCInstance* MACFrameRead()
     if(*pDataRemovedZero == 2)
     {
         //RR RNR REJ RSET
-#ifndef DEBUG_PRINTF
+        #ifndef DEBUG_PRINTF
         printf("\nctrl frame! 0x%02x\n",(nCtrlHeader & 0xf8));
-#endif
+        #endif
+
         if(nCtrlHeader != LLC_FRAME_RST)//不是RSET帧
         {
+            //根据优先级字段选择合适的处理实体
             pLLCInstance = GetCorrespondingLLCInstance(pDataRemovedZero);
             if(pLLCInstance == NULL)
                 return NULL;
@@ -512,8 +528,9 @@ tLLCInstance* MACFrameRead()
                 UNLOCK_WRITE();
             }
         }        
-        //响应
+
         return NULL;
+
     }//UA帧 只有UA帧和RESET帧没有优先级信息，所以只有UA帧可能是一字节长
     else if(*pDataRemovedZero == 1)
     {        
@@ -535,13 +552,13 @@ tLLCInstance* MACFrameRead()
             //===========================================
             //      更新相关的 ID 数据，及时响应发送方
             //===========================================
-            printf("Befor deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
+            printf("\nBefor deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
             if(!DealIDProblemForIFrame(pLLCInstance,nCtrlHeader))
             {
                 printf("\nDealIDProblemForIFrame() error !\n");
                 return NULL;
             }
-            printf("After deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
+            printf("\nAfter deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
             //===========================================   
                 
             //g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
@@ -552,12 +569,12 @@ tLLCInstance* MACFrameRead()
             if(((nPackageHeader & 0x80) == 0x80) && ((nPackageHeader & 0x40) == 0x00))
             {
                 //只有一个分片，且不是数据帧
-                if((nMessageHeader & CONNECT_VALUE_MASK) == CONNECT_ERROR_VALUE)   //错误帧
+                if((nMessageHeader & CONNECT_VALUE_MASK) == CONNECT_ERROR_VALUE)   //连接错误帧
                 {
                     ConnectErrorFrameHandle(nMessageHeader);
                     return NULL;
                 }
-                else    //正常的控制帧
+                else    //正常的连接控制帧
                 {
                     if(!ConnectCtrlFrameACK(nMessageHeader))
                         return NULL;
@@ -565,12 +582,16 @@ tLLCInstance* MACFrameRead()
             }
             else if((nPackageHeader & 0x40) == 0x40)
             {
+                //是应用数据帧
                 if(pLLCInstance->bIsFirstFregment)
                 {
+                    //第一个分片，有 Message Header 字段
                     pLLCInstance->bIsFirstFregment = false;
                     nMessageHeader = *(pDataRemovedZero + 3);
-                    if(nMessageHeader == CONNECT_SEND_RECV_MESSAGE)     //正常的数据帧
+
+                    if(nMessageHeader == CONNECT_SEND_RECV_MESSAGE)     //正常的应用数据帧
                     {  
+                        //nLength 是数据帧的长度，从 LLC Header 到 有效载荷最后一个字节，这个长度比应用数据有效载荷多了两个字节， LLC Header 和 Package Header
                         nLength = *pDataRemovedZero;
                         *pDataRemovedZero = *pDataRemovedZero - 1;
                         for(int index = 0; index <= nLength; index++)
@@ -637,8 +658,6 @@ uint8_t MACFrameWrite()
         return 0;
     }
 
-    //取得优先级最高的LLC实体，把它的写链表中最早的数据写到滑动窗口上
-    //printf("\nMACFrameWrite\n");
     uint8_t nInsertedZeroFrameLength = 0;
     uint8_t* pCtrlLLCHeader = NULL;
     uint8_t* pCtrlFrameData = NULL;
@@ -652,6 +671,7 @@ uint8_t MACFrameWrite()
     
     g_sMACInstance->bIsWriteFramePending = true;
 
+    //取得优先级最高的LLC实体，把它的写链表中最早的数据写到滑动窗口上
     for(nPriority = 0; nPriority < PRIORITY; nPriority++)
     {
         if((g_aLLCInstance[nPriority]->pLLCFrameWriteListHead != NULL) || (g_aLLCInstance[nPriority]->nNextCtrlFrameToSend != READ_CTRL_FRAME_NONE))
@@ -683,43 +703,48 @@ uint8_t MACFrameWrite()
 
     if(pLLCInstance->nNextCtrlFrameToSend == READ_CTRL_FRAME_NONE)
     {
-        
+        //获取一个滑动窗口实体，往里面写要发送的数据
         pSingleMACFrame = pLLCInstance->aSlideWindow[static_Modulo(pLLCInstance->nWriteNextToSendFrameId,pLLCInstance->nWindowSize)];
-        // if(pSingleMACFrame->pFrameBuffer != NULL)
-        // {
-        //     printf("\nCFREE((void*)(pSingleMACFrame->pFrameBuffer))\n");
-        //     CFREE((void*)(pSingleMACFrame->pFrameBuffer));
-        //     pSingleMACFrame->pFrameBuffer = NULL;
-        //     pSingleMACFrame->nFrameLength = 0;
-        // }
         pSendLLCFrame = pLLCInstance->pLLCFrameWriteListHead;
-        //(pSendLLCFrame->nFrameLength + 3)
-        
+        //暂时不更新 pLLCInstance->pLLCFrameWriteListHead ，如果发送失败，下一次还需要重发这一帧
+
+        //MAC 帧头
         *(pSingleMACFrame->pFrameBuffer) = HEADER_SOF;
         //填充 N(S) 和 N(R) 字段 
         *(pSendLLCFrame->pFrameBuffer + 1) |= ((pLLCInstance->nWriteNextToSendFrameId & 0x07) << 3);
         *(pSendLLCFrame->pFrameBuffer + 1) |= (pLLCInstance->nReadNextToReceivedFrameId & 0x07);
 
+        //计算 crc，由于是demo，就没有采用 crc16
         nCRC = 0;
         for(int index = 0; index < pSendLLCFrame->nFrameLength-1; index++)
         {
             nCRC ^= *(pSendLLCFrame->pFrameBuffer + index);
         }
         *(pSendLLCFrame->pFrameBuffer + pSendLLCFrame->nFrameLength - 1) = nCRC;
+
+        #ifndef DEBUG_PRINTF
         printf("\npDataHaventInsertZero : ");
         for(int index = 0; index < pSendLLCFrame->nFrameLength; index++)
             printf("0x%02x ",*(pSendLLCFrame->pFrameBuffer + index));
         printf("\n");
+        #endif
+
+        //把sof 和 eof 之间的字节进行插 0 处理
         nInsertedZeroFrameLength = static_InsertZero(pSendLLCFrame->pFrameBuffer,pSingleMACFrame->pFrameBuffer+1,pSendLLCFrame->nFrameLength);
         *(pSingleMACFrame->pFrameBuffer + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
         //len + 2 : SOF EOF
         pSingleMACFrame->nFrameLength = nInsertedZeroFrameLength + 2;
 
+        //更新 pLLCInstance->pLLCFrameWriteListHead，摘掉第一帧
         pLLCInstance->pLLCFrameWriteListHead = pSendLLCFrame->pNext;
         pSendLLCFrame->pNext = NULL;
+
+        //这里没有写到已发送链表，是因为滑动窗口已经被设计为全局的 WriteContext 实体，他来充当 WriteCompletedContextList 的角色
         //##加锁
         //static_AddToWriteCompletedContextList(pLLCInstance,pSingleMACFrame,ADD_TO_LIST_HEAD);
         //##解锁
+
+        //更新ID
         pLLCInstance->nWriteNextToSendFrameId += 1;
 
         if(pLLCInstance->nWriteNextToSendFrameId == 0)
@@ -740,12 +765,15 @@ uint8_t MACFrameWrite()
     }//控制帧优先级最高，直接发送
     else
     {
+        //控制帧没有 ID 信息，因为控制帧的发送是在满足条件之后发送的，如果控制帧丢失，则没有响应，那么发送方的控制帧发送条件一直满足，会自动重发的
         if(pLLCInstance->nNextCtrlFrameToSend != LLC_FRAME_UA)
         {
+            //RR RNR REJ RST 当前版本，暂不支持 SREJ
             //预留一个 CRC 字节
             pCtrlLLCHeader = (uint8_t*)CMALLOC(sizeof(uint8_t)*4);
             pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*7);   //SOF LEN + LLCCRTL WINDOWSIZE [INSERTED ZERO] + CRC EOF
             
+            // LLC Header 和 Package Header
             *pCtrlLLCHeader = 0x02;
             
             if(pLLCInstance->nNextCtrlFrameToSend == LLC_FRAME_RST)
@@ -782,10 +810,14 @@ uint8_t MACFrameWrite()
             for(uint8_t index = 0; index < 3; index++)
                 nCRC ^= *(pCtrlLLCHeader + index);
             *(pCtrlLLCHeader + 3) = nCRC;
+
+            #ifndef DEBUG_PRINTF
             printf("\npDataHaventInsertZero : ");
             for(int index = 0; index < 4; index++)
                 printf("0x%02x ",*(pCtrlLLCHeader + index));
             printf("\n");
+            #endif
+
             nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,4);
             printf("\nCFREE(pCtrlLLCHeader)\n");
             CFREE(pCtrlLLCHeader);
@@ -795,23 +827,27 @@ uint8_t MACFrameWrite()
             //预留一个 CRC 字节
             pCtrlLLCHeader = (uint8_t*)CMALLOC(sizeof(uint8_t)*3);
             pCtrlFrameData = (uint8_t*)CMALLOC(sizeof(uint8_t)*6);   //SOF LEN + LLCCRTL [INSERTED ZERO] + CRC EOF
+            
             *pCtrlLLCHeader = 0x01;
             *(pCtrlLLCHeader + 1) = 0x00;
-            
             *(pCtrlLLCHeader + 1) = READ_CTRL_FRAME_UA;
                    
             nCRC ^= *(pCtrlLLCHeader);
             nCRC ^= *(pCtrlLLCHeader + 1);
-            
             *(pCtrlLLCHeader + 2) = nCRC;
+
+            #ifndef DEBUG_PRINTF
             printf("\npDataHaventInsertZero : ");
             for(int index = 0; index < 3; index++)
                 printf("0x%02x ",*(pCtrlLLCHeader + index));
             printf("\n");
+            #endif
+
             nInsertedZeroFrameLength = static_InsertZero(pCtrlLLCHeader,pCtrlFrameData+1,3);
             printf("\nCFREE(pCtrlLLCHeader)\n");
             CFREE(pCtrlLLCHeader);
         }
+
         *(pCtrlFrameData) = HEADER_SOF;
         *(pCtrlFrameData + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
         nCtrlFrameLength = nInsertedZeroFrameLength + 2;
@@ -826,6 +862,13 @@ uint8_t MACFrameWrite()
     }
 }
 
+/**
+ * @function    处理 LLC 控制帧
+ * @parameter1  LLC Header
+ * @parameter2  优先级实体
+ * @return      true    正确处理了 LLC 控制帧
+ *              false   处理失败
+*/
 bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
 {
     uint8_t nN_R_Value;
@@ -928,6 +971,14 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     return true;
 }
 
+/**
+ * @function    发送一帧 MAC 帧，如果是 LLC 层的控制帧（RR，RNR，REJ，RST，UA）,则直接发送，
+ *              否则发送下一帧需要被发送的 MAC 帧，nWriteNextWindowFrameId，这个值可能被 REJ 帧改变
+ * @parameter1  发送的数据帧对应的优先级实体（一个优先级一个 tLLCInstance 指针对象）
+ * @parameter2  要发送的数据
+ * @parameter3  要发送数据的长度，字节数
+ * @parameter4  是否是 LLC 控制帧
+*/
 uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,bool bIsCtrlFrame)
 {
     tMACWriteContext* pSendMACFrame = NULL;
@@ -999,6 +1050,13 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
 //     }
 // }
 
+/**
+ * @function    把做了插 0 处理的数据复原
+ * @parameter1  做了插 0 处理的数据
+ * @parameter2  保存去 0 结果的地址
+ * @parameter3  做了插 0 处理的数据的长度
+ * @return      去 0 之后的数据长度
+*/
 uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferRemovedZero,uint8_t nLengthInsteredZero)
 {
     uint8_t nByteValue;
@@ -1053,6 +1111,13 @@ uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferR
         return (nOutBitCount/8 + 1);
 }
 
+/**
+ * @function    插 0 处理
+ * @parameter1  未插 0 的数据
+ * @parameter2  完成插 0 操作后的数据的首地址
+ * @parameter3  未插 0 前的字节数
+ * @return      完成插 0 后的字节数 
+*/
 uint8_t static_InsertZero(uint8_t* aMACReadBuffer,uint8_t* pNewBuffer,uint8_t nOldLength)
 {
     uint8_t nByteValue;

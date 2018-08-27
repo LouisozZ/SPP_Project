@@ -325,9 +325,10 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
     tLLCInstance* pLLCInstance = NULL;
     bool bIsFirstFregment = true;
 
-    //加上一个消息头的长度
+    //有效载荷总长，需要加上一个Msg Header的长度
     nRemainingPayload++;
 
+    //消息分片
     while(nRemainingPayload > 0)
     {
         pLLCWriteContext = (tLLCWriteContext*)CMALLOC(sizeof(tLLCWriteContext));
@@ -337,12 +338,13 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             pLLCWriteContext->bIsLastFragment = false;
             //+4 LEN LLCHEADER PACKAGEHEADER 预留一个 CRC 
             pSingleLLCFrame = (uint8_t*)CMALLOC(sizeof(uint8_t)*(LLC_FRAME_MAX_LENGTH));
+            //第一个字节是LLC帧的总长，有效载荷加上一个 LLC Header 和 一个 Package Header
             *pSingleLLCFrame = (uint8_t)(LLC_FRAME_MAX_DATA_LENGTH + 2);
-            //Package head
+            //填充 Package head
             *(pSingleLLCFrame + 2) = 0;             //初始化该字节为0，方面后面进行或运算
             *(pSingleLLCFrame + 2) |= 0x00;         //不是最后一片，分片的 CB 位为0
             if(bIsData)
-                *(pSingleLLCFrame + 2) |= 0x40;     //是一个数据帧，DT位1
+                *(pSingleLLCFrame + 2) |= 0x40;     //是一个数据帧，DT位1，文档中是CC位，Connect Control
             *(pSingleLLCFrame + 2) |= (g_nVersion & VERSION_FIELD_MASK);   //版本信息
             *(pSingleLLCFrame + 2) |= (nMessagePriority & PRIORITY_MASK);  //优先级信息            
         }
@@ -365,6 +367,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         if(bIsFirstFregment)
         {
             bIsFirstFregment = false;
+            //第一个分片是有Msg Header 的
             *(pSingleLLCFrame + 3) = g_sSPPInstance->nNextMessageHeader;
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-3; nSingleLLCFrameLength++)
             {
@@ -390,7 +393,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");     
 
         pLLCWriteContext->pFrameBuffer = pSingleLLCFrame;
-        pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;//total length conclude len and crc
+        pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;//MAC 帧有效载荷是一个LLC帧（从LLC头部开始算起）总长加上他的长度信息（一字节）与crc信息（一字节）
         //pLLCWriteContext->pCallbackFunction = (LLCFrameWriteCompleted*)CMALLOC(sizeof(LLCFrameWriteCompleted));
         pLLCWriteContext->pCallbackFunction = NULL;
         pLLCWriteContext->pCallbackParameter = (void*)CMALLOC(sizeof(void));        
@@ -416,6 +419,11 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
     return nWriteByteCount-1;//in fact the data to be sent don't have message header
 }
 
+/**
+ * @function    获得对应优先级的处理实体
+ * @parameter1  做了去 0 处理的数据
+ * @return      对应优先级的处理实体
+*/
 tLLCInstance* GetCorrespondingLLCInstance(uint8_t* pLLCFrameWithLength)
 {
     uint8_t nPriority = 0;
