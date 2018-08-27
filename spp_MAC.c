@@ -1,5 +1,8 @@
 #include "spp_global.h"
 
+#define IS_NS_FIELD true
+#define IS_NR_FIELD false
+
 int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
 {
     for(int index = 0; index < PRIORITY; index++)
@@ -199,13 +202,23 @@ uint8_t static_ResetLLC()
 
     return 0;
 }
-static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8_t n3bitValue )
+static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8_t n3bitValue,bool bIsNS)
 {
-   uint32_t n32bitValue = pLLCInstance->nWriteLastAckSentFrameId;
-
-   CDebugAssert(pLLCInstance != NULL);
-   CDebugAssert(pLLCInstance->nWriteNextToSendFrameId >= pLLCInstance->nWriteNextWindowFrameId);
-   CDebugAssert(pLLCInstance->nWriteNextWindowFrameId > n32bitValue);
+    CDebugAssert(pLLCInstance != NULL);
+    uint32_t n32bitValue = 0;
+    if(bIsNS)
+    {
+        n32bitValue = pLLCInstance->nReadLastAcknowledgedFrameId;
+        CDebugAssert(pLLCInstance->nReadNextToReceivedFrameId > n32bitValue);
+    }
+    else 
+    {
+        n32bitValue = pLLCInstance->nWriteLastAckSentFrameId;
+        CDebugAssert(pLLCInstance->nWriteNextToSendFrameId >= pLLCInstance->nWriteNextWindowFrameId);
+        CDebugAssert(pLLCInstance->nWriteNextWindowFrameId > n32bitValue);
+    }
+        
+   //uint32_t n32bitValue = pLLCInstance->nWriteLastAckSentFrameId;
    if( n3bitValue > (n32bitValue & 0x07))
    {
       n32bitValue = (n32bitValue & 0xFFFFFFF8) | n3bitValue;
@@ -256,8 +269,8 @@ bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
     uint8_t nTheOtherSideWishToGetID;
 
     //nReceivedFrameId = (nLLCHeader >> 3) & 0x07;
-    nReceivedFrameId = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader >> 3) & 0x07);
-    nTheOtherSideWishToGetID = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader) & 0x07);
+    nReceivedFrameId = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader >> 3) & 0x07,IS_NS_FIELD);
+    nTheOtherSideWishToGetID = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader) & 0x07,IS_NR_FIELD);
     if(!((nTheOtherSideWishToGetID > pLLCInstance->nWriteLastAckSentFrameId) && (nTheOtherSideWishToGetID <= pLLCInstance->nWriteNextToSendFrameId)))
     {
         printf("\npLLCInstance->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance->nWriteLastAckSentFrameId);
@@ -824,7 +837,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     uint32_t nAckedFrameNum = 0;
     nN_R_Value = (nCtrlFrame & 0x07);
     
-    nOtherWantToRecvNextId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value);
+    nOtherWantToRecvNextId = static_ConvertTo32BitIdentifier(pLLCInstance,nN_R_Value,IS_NR_FIELD);
         
     if(!((nOtherWantToRecvNextId > nWriteLastACKId) && (nOtherWantToRecvNextId <= nWriteNextToSendId)))
     {

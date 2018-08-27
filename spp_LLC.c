@@ -209,7 +209,8 @@ static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWi
 
     for(int index = 0; index < nThisLLCFrameLength; index++)
     {
-        *pBuffer++ = pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition++];
+        *pBuffer++ = pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition];
+        pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition++] = 0;
     }
 
     //因为 nLLCReadReadPosition 是 uint8_t 类型的，且aLLCReadBuffer[READ_BUFFER_SIZE] 最大是256，所以自加溢出自动到头部
