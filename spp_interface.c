@@ -43,7 +43,7 @@ int ConnectToMCU()
         printf("\n\nConnect Timeout!\n\n");
         return -1;
     }
-    
+
     if(g_aLLCInstance[0]->nWriteNextWindowFrameId != (g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1))
     {
         g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
@@ -155,10 +155,10 @@ int RecvMessage(void** pDataAddress,uint32_t* pMessageLength)
     *pDataAddress = g_sSPPInstance->pMessageBuffer;
     g_sSPPInstance->bIsMessageReady = false;
     g_sSPPInstance->nMessageLength = 0;
-    // for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
-    // {
-    //     *((uint8_t*)pDataAddress++) = *(g_sSPPInstance->pMessageBuffer + index);
-    // }
+    for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
+    {
+        *((uint8_t*)pDataAddress++) = *(g_sSPPInstance->pMessageBuffer + index);
+    }
     //return *(int*)(pDataAddress+4);//return the type field
     return 1;
 

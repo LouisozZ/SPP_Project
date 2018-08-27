@@ -259,6 +259,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     //在等待分片，组织成完整一帧，可以写入
     if((g_sSPPInstance->nMessageLength == 0) || (pLLCInstance->bIsWaitingLastFragment == true))
     {
+        LOCK_WRITE();
         g_sSPPInstance->bIsMessageReady = false;
         pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength); 
         pBuffer++;  //跳过第一个长度字节
@@ -282,6 +283,8 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             g_sSPPInstance->nMessageLength += 1;
         }
 
+        printf("\ng_sSPPInstance->nMessageLength : %d\n",g_sSPPInstance->nMessageLength);
+
         if((pBuffer[1] & 0x80) == 0)
         {
             printf("\n is waiting last fragment ... \n");
@@ -295,7 +298,7 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             g_sSPPInstance->bIsMessageReady = true;
             //把一帧 LLC 帧解析成message向上传递
         }
-        
+        UNLOCK_WRITE();
     }  
     else
     {
