@@ -253,11 +253,18 @@ bool CheckReadBufferFree(tLLCInstance* pLLCInstance)
 bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
 {
     uint8_t nReceivedFrameId;
+    uint8_t nTheOtherSideWishToGetID;
 
     //nReceivedFrameId = (nLLCHeader >> 3) & 0x07;
     nReceivedFrameId = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader >> 3) & 0x07);
-    if(!((nReceivedFrameId > pLLCInstance->nWriteLastAckSentFrameId) && (nReceivedFrameId <= pLLCInstance->nWriteNextToSendFrameId)))
+    nTheOtherSideWishToGetID = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader) & 0x07);
+    if(!((nTheOtherSideWishToGetID > pLLCInstance->nWriteLastAckSentFrameId) && (nTheOtherSideWishToGetID <= pLLCInstance->nWriteNextToSendFrameId)))
+    {
+        printf("\npLLCInstance->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance->nWriteLastAckSentFrameId);
+        printf("\nnTheOtherSideWishToGetID : 0x%08x\n",nTheOtherSideWishToGetID);
+        printf("\npLLCInstance->nWriteNextToSendFrameId : 0x%08x\n",pLLCInstance->nWriteNextToSendFrameId);
         return false;
+    }    
    
     /* build a RR frame with the same "next to receive identifier" */
     nLLCHeader &= 0x07;
