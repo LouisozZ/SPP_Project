@@ -41,7 +41,8 @@ uint8_t InitLLCInstance()
         for(uint8_t nWindowNum = 0; nWindowNum < MAX_WINDOW_SIZE; nWindowNum++)
         {
             g_aLLCInstance[index]->aSlideWindow[nWindowNum] = (tMACWriteContext*)CMALLOC(sizeof(tMACWriteContext));
-            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = NULL;
+            //g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = NULL;
+            g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pFrameBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*(MAC_FRAME_MAX_LENGTH));            
             g_aLLCInstance[index]->aSlideWindow[nWindowNum]->nFrameLength = 0;
             g_aLLCInstance[index]->aSlideWindow[nWindowNum]->pNext = NULL;
         }
@@ -342,21 +343,33 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         }
 
         *(pSingleLLCFrame + 1) = 0x80;  //信息帧，N(S)和N(R)字段在发送的时候填充
+        printf("\n!!!!!!!!!   a pess of pSendMessageAddress   !!!!!!!!!!!!!!\n");
         if(bIsFirstFregment)
         {
             bIsFirstFregment = false;
             *(pSingleLLCFrame + 3) = g_sSPPInstance->nNextMessageHeader;
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-3; nSingleLLCFrameLength++)
+            {
+                printf("0x%02x ",*pSendMessageAddress);
                 *(pSingleLLCFrame + 4 + nSingleLLCFrameLength) = *pSendMessageAddress++;
+            }
             nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
         }
         else
         {
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-2; nSingleLLCFrameLength++)
+            {
+                printf("0x%02x ",*pSendMessageAddress);
                 *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *pSendMessageAddress++;
+            }    
         }
-        
-        
+        printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");     
+        printf("\n!!!!!!!!!   this pess in pSingleLLCFrameis   !!!!!!!!!!!!!\n");
+        for(int index = 0; index < nSingleLLCFrameLength + 3; index++)
+        {
+                printf("0x%02x ",*(pSingleLLCFrame + index));
+        }
+        printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");     
 
         pLLCWriteContext->pFrameBuffer = pSingleLLCFrame;
         pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;//total length conclude len and crc

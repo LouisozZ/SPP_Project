@@ -663,17 +663,17 @@ uint8_t MACFrameWrite()
 
     if(pLLCInstance->nNextCtrlFrameToSend == READ_CTRL_FRAME_NONE)
     {
+        
         pSingleMACFrame = pLLCInstance->aSlideWindow[static_Modulo(pLLCInstance->nWriteNextToSendFrameId,pLLCInstance->nWindowSize)];
-        if(pSingleMACFrame->pFrameBuffer != NULL)
-        {
-            printf("\nCFREE((void*)(pSingleMACFrame->pFrameBuffer))\n");
-            CFREE((void*)(pSingleMACFrame->pFrameBuffer));
-            pSingleMACFrame->pFrameBuffer = NULL;
-            pSingleMACFrame->nFrameLength = 0;
-        }
+        // if(pSingleMACFrame->pFrameBuffer != NULL)
+        // {
+        //     printf("\nCFREE((void*)(pSingleMACFrame->pFrameBuffer))\n");
+        //     CFREE((void*)(pSingleMACFrame->pFrameBuffer));
+        //     pSingleMACFrame->pFrameBuffer = NULL;
+        //     pSingleMACFrame->nFrameLength = 0;
+        // }
         pSendLLCFrame = pLLCInstance->pLLCFrameWriteListHead;
         //(pSendLLCFrame->nFrameLength + 3)
-        pSingleMACFrame->pFrameBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*MAC_FRAME_MAX_LENGTH);
         
         *(pSingleMACFrame->pFrameBuffer) = HEADER_SOF;
         //填充 N(S) 和 N(R) 字段 
@@ -708,7 +708,7 @@ uint8_t MACFrameWrite()
         if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
             pLLCInstance->bIsWriteWindowsFull = true;
         else
-            pLLCInstance->bIsWriteWindowsFull = false;
+            pLLCInstance->bIsWriteWindowsFull = false;//nWriteNextWindowFrameId
 
         SPIWriteBytes(pLLCInstance,pSingleMACFrame->pFrameBuffer,pSingleMACFrame->nFrameLength,0);
         if(pSendLLCFrame->bIsLastFragment)//最后一片，设置重发超时
