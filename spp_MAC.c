@@ -705,7 +705,7 @@ uint8_t MACFrameWrite()
         pLLCInstance->pLLCFrameWriteListHead = pSendLLCFrame->pNext;
         pSendLLCFrame->pNext = NULL;
         //##加锁
-        static_AddToWriteCompletedContextList(pLLCInstance,pSingleMACFrame,ADD_TO_LIST_HEAD);
+        //static_AddToWriteCompletedContextList(pLLCInstance,pSingleMACFrame,ADD_TO_LIST_HEAD);
         //##解锁
         pLLCInstance->nWriteNextToSendFrameId += 1;
 
@@ -850,14 +850,14 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         printf("\nRR : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         //##加锁
-        for(int times = 0; times < nAckedFrameNum; times++)
-        {
-            if(!RemoveACompleteSentFrame(pLLCInstance))
-            {
-                printf("\nThe count of completed write context is less than recved N(R) - lastAck.\n");
-                return false;
-            }
-        }
+        // for(int times = 0; times < nAckedFrameNum; times++)
+        // {
+        //     if(!RemoveACompleteSentFrame(pLLCInstance))
+        //     {
+        //         printf("\nThe count of completed write context is less than recved N(R) - lastAck.\n");
+        //         return false;
+        //     }
+        // }
         //##解锁
         printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%08x\n",nOtherWantToRecvNextId);
         
@@ -869,14 +869,14 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
 
         //##加锁
-        for(int times = 0; times < nAckedFrameNum; times++)
-        {
-            if(!RemoveACompleteSentFrame(pLLCInstance))
-            {
-                printf("\nThe count of completed write context is less than recved N(R) - lastAck.\n");
-                return false;
-            }
-        }
+        // for(int times = 0; times < nAckedFrameNum; times++)
+        // {
+        //     if(!RemoveACompleteSentFrame(pLLCInstance))
+        //     {
+        //         printf("\nThe count of completed write context is less than recved N(R) - lastAck.\n");
+        //         return false;
+        //     }
+        // }
         //##解锁
         pLLCInstance->nWriteNextWindowFrameId = nOtherWantToRecvNextId;
         printf("\nREJ : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
@@ -896,14 +896,14 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         printf("\nRNR : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         //##加锁
-        for(int times = 0; times < nAckedFrameNum; times++)
-         {
-            if(!RemoveACompleteSentFrame(pLLCInstance))
-            {
-                printf("\nThe count of completed write context is less than recved N(R) - lastAck.\n");
-                return false;
-            }
-        }
+        // for(int times = 0; times < nAckedFrameNum; times++)
+        //  {
+        //     if(!RemoveACompleteSentFrame(pLLCInstance))
+        //     {
+        //         printf("\nThe count of completed write context is less than recved N(R) - lastAck.\n");
+        //         return false;
+        //     }
+        // }
         //##解锁
         printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nOtherWantToRecvNextId);
         
@@ -941,51 +941,50 @@ uint8_t SPIWriteBytes(tLLCInstance* pLLCInstance,uint8_t* pData,uint8_t nLength,
     return 0;
 }
 
-uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
-{
-    tMACWriteContext* pWriteContext;
-    pWriteContext = pLLCInstance->pLLCFrameWriteCompletedListHead;
+// uint8_t RemoveACompleteSentFrame(tLLCInstance* pLLCInstance)
+// {
+//     tMACWriteContext* pWriteContext;
+//     pWriteContext = pLLCInstance->pLLCFrameWriteCompletedListHead;
 
-    tMACWriteContext* pPreWriteContext;
+//     tMACWriteContext* pPreWriteContext;
 
-    LOCK_WRITE();
+//     LOCK_WRITE();
 
-    if(pWriteContext == NULL)
-    {
-        UNLOCK_WRITE();
-        return 0;
-    }
-    else
-    {
-        pPreWriteContext = pWriteContext;
-        pWriteContext = pPreWriteContext->pNext;
-        if(pWriteContext == NULL)
-        {
-            printf("\nCFREE((void*)(pPreWriteContext))\n");
-            CFREE((void*)(pPreWriteContext->pFrameBuffer));
-            CFREE((void*)(pPreWriteContext));
-            pPreWriteContext = NULL;
-            pLLCInstance->pLLCFrameWriteCompletedListHead = NULL;
-        }
-        else
-        {
-            while(pWriteContext->pNext != NULL)
-            {
-                pPreWriteContext = pWriteContext;
-                pWriteContext = pPreWriteContext->pNext;
-            }
-            printf("\nCFREE((void*)(pWriteContext))\n");
-            CFREE((void*)(pWriteContext->pFrameBuffer));
-            CFREE((void*)(pWriteContext));
-            pWriteContext = NULL;
-            pPreWriteContext->pNext = NULL;
-        }
-        UNLOCK_WRITE();
+//     if(pWriteContext == NULL)
+//     {
+//         UNLOCK_WRITE();
+//         return 0;
+//     }
+//     else
+//     {
+//         pPreWriteContext = pWriteContext;
+//         pWriteContext = pPreWriteContext->pNext;
+//         if(pWriteContext == NULL)
+//         {
+//             printf("\nCFREE((void*)(pPreWriteContext))\n");
+//             CFREE((void*)(pPreWriteContext->pFrameBuffer));
+//             CFREE((void*)(pPreWriteContext));
+//             pPreWriteContext = NULL;
+//             pLLCInstance->pLLCFrameWriteCompletedListHead = NULL;
+//         }
+//         else
+//         {
+//             while(pWriteContext->pNext != NULL)
+//             {
+//                 pPreWriteContext = pWriteContext;
+//                 pWriteContext = pPreWriteContext->pNext;
+//             }
+//             printf("\nCFREE((void*)(pWriteContext))\n");
+//             CFREE((void*)(pWriteContext->pFrameBuffer));
+//             CFREE((void*)(pWriteContext));
+//             pWriteContext = NULL;
+//             pPreWriteContext->pNext = NULL;
+//         }
+//         UNLOCK_WRITE();
 
-        return 1;
-    }
-
-}
+//         return 1;
+//     }
+// }
 
 uint8_t static_RemoveInsertedZero(uint8_t* aBufferInsertedZero,uint8_t* pBufferRemovedZero,uint8_t nLengthInsteredZero)
 {

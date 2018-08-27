@@ -117,41 +117,41 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
  * @parameter3  插入选项，如果为真就把写对象加入到链表头，否则加入到链表尾
  * @return      错误码 
 */
-uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWriteContext* pMACWriteContext,bool bIsAddToHead)
-{
-    tLLCWriteContext** pListHead = NULL;
-    tLLCWriteContext* pWriteContext = pMACWriteContext;
-    tLLCWriteContext* pTempNode = NULL;
+// uint8_t static_AddToWriteCompletedContextList(tLLCInstance* pLLCInstance, tMACWriteContext* pMACWriteContext,bool bIsAddToHead)
+// {
+//     tLLCWriteContext** pListHead = NULL;
+//     tLLCWriteContext* pWriteContext = pMACWriteContext;
+//     tLLCWriteContext* pTempNode = NULL;
 
-    pListHead = &(pLLCInstance->pLLCFrameWriteCompletedListHead);
+//     pListHead = &(pLLCInstance->pLLCFrameWriteCompletedListHead);
 
-    LOCK_WRITE();
-    //加入到链表末尾
-    if(!bIsAddToHead)
-    {
-        if ( *pListHead == NULL)
-        {
-            *pListHead = pWriteContext;
-            UNLOCK_WRITE();
-            return 1;
-        }
+//     LOCK_WRITE();
+//     //加入到链表末尾
+//     if(!bIsAddToHead)
+//     {
+//         if ( *pListHead == NULL)
+//         {
+//             *pListHead = pWriteContext;
+//             UNLOCK_WRITE();
+//             return 1;
+//         }
 
-        while((*pListHead)->pNext != NULL)
-        {
-            pListHead = &(*pListHead)->pNext;
-        }
-        (*pListHead)->pNext = pWriteContext;
-    }//加入到链表头
-    else
-    {
-        pTempNode = *pListHead;
-        *pListHead = pWriteContext;
-        (*pListHead)->pNext = pTempNode;
-    }
+//         while((*pListHead)->pNext != NULL)
+//         {
+//             pListHead = &(*pListHead)->pNext;
+//         }
+//         (*pListHead)->pNext = pWriteContext;
+//     }//加入到链表头
+//     else
+//     {
+//         pTempNode = *pListHead;
+//         *pListHead = pWriteContext;
+//         (*pListHead)->pNext = pTempNode;
+//     }
 
-    UNLOCK_WRITE();
-    return 1;
-}
+//     UNLOCK_WRITE();
+//     return 1;
+// }
 
 void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize)
 {
