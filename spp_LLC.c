@@ -283,6 +283,15 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
             g_sSPPInstance->nMessageLength += 1;
         }
 
+        #ifndef DEBUG_PRINTF
+        printf("\n++++++++++++  One of the recved pess :  ++++++++++++\n");
+        for(int index = 2; index < nThisLLCFrameLength; index++)
+        {
+            printf("0x%02x ",pBuffer[index]);
+        }
+        printf("\n++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
+        #endif
+
         printf("\ng_sSPPInstance->nMessageLength : %d\n",g_sSPPInstance->nMessageLength);
 
         if((pBuffer[1] & 0x80) == 0)
