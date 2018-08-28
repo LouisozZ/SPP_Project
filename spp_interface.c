@@ -156,10 +156,11 @@ int RecvMessage(void** pDataAddress,uint32_t* pMessageLength)
     g_sSPPInstance->bIsMessageReady = false;
     g_sSPPInstance->nMessageLength = 0;
 
+    printf("\ng_sSPPInstance->nMessageLength : %d\n",g_sSPPInstance->nMessageLength);
     printf("\nThe recved message is :\n");
     for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
     {
-        printf("0x%02x ",*(g_sSPPInstance->pMessageBuffer + index));
+        printf("  %d : 0x%02x  ",index,*(g_sSPPInstance->pMessageBuffer + index));
     }
     printf("\n\n");
     //return *(int*)(pDataAddress+4);//return the type field
