@@ -16,6 +16,7 @@ uint8_t InitLLCInstance()
         g_aLLCInstance[index]->pReadHandler = NULL;
         g_aLLCInstance[index]->pReadHandlerParameter = NULL;
         g_aLLCInstance[index]->bIsFirstFregment = true;
+        g_aLLCInstance[index]->bIsWaitingLastFragment = false;
         
 
         //写操作相关
