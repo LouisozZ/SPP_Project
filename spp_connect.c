@@ -1,5 +1,8 @@
 #include "spp_global.h"
 
+/**
+ * @function    第三次握手超时任务，如果第三次握手超时，则重发对应的帧
+*/
 static void Timer1_FinialComfirmTimeout(void* pParameter)
 {
     if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_CONFIRM)
@@ -11,6 +14,10 @@ static void Timer1_FinialComfirmTimeout(void* pParameter)
     }
 }
 
+/**
+ * @function    处理接收到的连接错误帧处理函数，根据需要修改
+ * @parameter1  Msg Header
+*/
 uint8_t ConnectErrorFrameHandle(uint8_t nMessageHeader)
 {
     uint8_t nErrorType;
@@ -36,6 +43,9 @@ uint8_t ConnectErrorFrameHandle(uint8_t nMessageHeader)
     return 0;
 }
 
+/**
+ * @function    三次握手连接状态机
+*/
 uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader)
 {
     uint8_t nErrorMessageHeader = 0;
@@ -98,7 +108,6 @@ uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader)
             LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
             return 1;
             //等待对方发送reset帧，初始化LLC层
-            //在状态为 CONNECT_STATU_WAITING_LLC_RESET 并且收到了 reset 帧的情况下，连接状态为已连接 CONNECT_STATU_CONNECTED
         }
         else 
         {
@@ -120,7 +129,6 @@ uint8_t ConnectCtrlFrameACK(uint8_t nMessageHeader)
             CancelTimerTask(TIMER_1_CONNECT_CONFIRM,CANCEL_MODE_IMMEDIATELY);
             SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);  
             return 1;          
-            //在状态为 CONNECT_STATU_WAITING_LLC_UA 并且收到了 ua 帧的情况下，连接状态为已连接 CONNECT_STATU_CONNECTED
         }
         else if(nMessageHeader == CONNECT_REQUIRE_CONNECT)      //响应的确认建立连接帧丢失，对方重发了请求帧
         {

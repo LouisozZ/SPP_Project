@@ -1,5 +1,8 @@
 #include "spp_global.h"
 
+/**
+ * @function    初始化每个优先级实体，优先级在 spp_def.h 文件中定义，可修改
+*/
 uint8_t InitLLCInstance()
 {
     for(int index = 0; index < PRIORITY; index++)
@@ -50,12 +53,18 @@ uint8_t InitLLCInstance()
     }
     return 1;
 }
+
 #define PNALUtilConvertUint32ToPointer( nValue ) \
          ((void*)(((uint8_t*)0) + (nValue)))
 
+/**
+ * @function    避免ID出错，因为都是无符号类型的变量，所以只要有一个出现了整数溢出，则每个 ID 都加了 0x20 之后都会溢出
+ *              保证了他们的大小关系和连续性
+ * @parameter1  对应的优先级实体
+*/
 void static_AvoidCounterSpin(tLLCInstance* pLLCInstance)
 {
-   pLLCInstance->nReadNextToReceivedFrameId += 0x20;   //加32？    0x 0010 0000
+   pLLCInstance->nReadNextToReceivedFrameId += 0x20;   
    pLLCInstance->nReadLastAcknowledgedFrameId += 0x20;
    pLLCInstance->nWriteLastAckSentFrameId += 0x20;
    pLLCInstance->nWriteNextToSendFrameId += 0x20;
@@ -154,6 +163,11 @@ static uint8_t static_AddToWriteContextList(tLLCInstance* pLLCInstance, tLLCWrit
 //     return 1;
 // }
 
+/**
+ * @function    在接收到 RST 帧或者是发送 RST 帧后得到了对方响应的 UA 帧之后，重置 ID
+ * @parameter1  需要重置 ID 的优先级
+ * @parameter2  新的窗口大小
+*/
 void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize)
 {
    pLLCInstance->nWindowSize = nWindowSize;
@@ -163,7 +177,6 @@ void static_ResetWindowSendRecv(tLLCInstance* pLLCInstance,uint8_t nWindowSize)
    pLLCInstance->nReadLastAcknowledgedFrameId = 0x1F;                    //接收到的最新的帧ID
    pLLCInstance->nReadT1Timeout = (TIMER_T1_TIMEOUT * nWindowSize)>>2;   //T1的接收超时
    pLLCInstance->nWriteLastAckSentFrameId = 0x1F;                        //最新的对发送帧的响应的ID
-   printf("\nstatic_ResetWindowSendRecv() : 0x%08x ->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance,pLLCInstance->nWriteLastAckSentFrameId);
    pLLCInstance->nWriteNextToSendFrameId = 0x20;                         //下一个要发送的帧ID
    pLLCInstance->nWriteNextWindowFrameId = 0x20;                         //下一个要被写的窗口ID
 
@@ -198,6 +211,13 @@ static bool static_CheckIfRSTFrame(tLLCInstance* pLLCInstance,uint8_t* pBuffer,u
    return false;
 }
 
+/**
+ * @function    从一个 LLC 优先级实体的读缓冲区中读取出一个 LLC 帧，
+ *              这个 LLC 帧结构是 [len] + [llc header] + [pack header] + [payload]
+ * @parameter1  对应优先级实体
+ * @parameter2  [len] 的值，是 [llc header] + [pack header] + [payload] 的总字节数
+ * @return      copy 出来的一帧 LLC 帧的首地址
+*/
 static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWithPRI,uint8_t nFrameLength)
 {
     tLLCInstance* pLLCInstance = pLLCInstanceWithPRI;
@@ -205,7 +225,12 @@ static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWi
     uint8_t* pBuffer_return;
     uint8_t nThisLLCFrameLength = 0;
     nThisLLCFrameLength = nFrameLength;
+
+    //这个 LLC 帧结构是 [len] + [llc header] + [pack header] + [payload]
+    //[len] 的值，是 [llc header] + [pack header] + [payload] 的总字节数
+    //所以要加上一字节的 [len]
     pBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*nThisLLCFrameLength + 1);
+    //return 的时候的返回值
     pBuffer_return = pBuffer;
 
     for(int index = 0; index <= nThisLLCFrameLength; index++)
@@ -222,6 +247,10 @@ static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWi
     return pBuffer_return;
 }
 
+/**
+ * @function    重组 message ，把一个个 LLC 帧，组装成一个完整的 message 放在全局唯一的 g_sSPPInstance->pMessageBuffer中
+ * @parameter1  对应的优先级实体
+*/
 uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
 {
     tLLCInstance* pLLCInstance = pLLCInstanceWithPRI;
@@ -233,7 +262,10 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
 
     if(pLLCInstance->nLLCReadReadPosition == pLLCInstance->nLLCReadWritePosition)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nread bufffer is empty!\n");
+        #endif
+
         return 0;
     }
 
@@ -242,16 +274,21 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     //CDebugAssert(pLLCInstance != NULL );
     if(pLLCInstance == NULL)
     {
+        #ifdef DEBUG_PRINTF
         printf("\npLLCInstance == NULL!\n");
+        #endif
+
         return 0;
     }
     //CDebugAssert(nThisLLCFrameLength >= 1);
     if(nThisLLCFrameLength < 1)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nnThisLLCFrameLength < 1 !\n");
         printf("\ng_aLLCInstance[%d]->nLLCReadReadPosition : %d\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nLLCReadReadPosition);
         printf("\npLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition] : %d\n",pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition]);
         printf("\nnThisLLCFrameLength : %d\n",nThisLLCFrameLength);
+        #endif
 
         return 0;
     }
@@ -261,49 +298,60 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     if((g_sSPPInstance->nMessageLength == 0) || (pLLCInstance->bIsWaitingLastFragment == true))
     {
         LOCK_WRITE();
+
         g_sSPPInstance->bIsMessageReady = false;
         pBuffer = static_ReadALLCFrameFromeReadBuffer(pLLCInstance,nThisLLCFrameLength); 
         pBuffer++;  //跳过第一个长度字节
         //nReadLastAcknowledgedFrameId 是我已经给对方发送了的已经接受的确认信息
         nNonAcknowledgedFrameNumber = pLLCInstance->nReadNextToReceivedFrameId - pLLCInstance->nReadLastAcknowledgedFrameId;
         
-        /* If this number is greater than or equals to the window size */
+        //如果接收了但是还没有响应的分片数量大于等于滑动窗口大小，则表示发送方的滑动窗口已经因为没有得到接收方响应而满了
+        //所以需要响应一个 RR 帧，释放发送方滑动窗口资源
         if( nNonAcknowledgedFrameNumber >= pLLCInstance->nWindowSize )
         {
-           /* Then send an acknowledge *///ACK是I帧或者RR帧
             pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
         }
         else if( nNonAcknowledgedFrameNumber == 1 )
         {
+            #ifdef DEBUG_PRINTF
             printf("\nalready read the last frame or other side haven't send frame.\n");
+            #endif
         }
 
+        //将一个消息分片接在之前分片数据的后面
         for(int index = 2; index < nThisLLCFrameLength; index++)
         {
             *(g_sSPPInstance->pMessageBuffer + g_sSPPInstance->nMessageLength) = pBuffer[index];
             g_sSPPInstance->nMessageLength += 1;
         }
 
-        #ifndef DEBUG_PRINTF
+        #ifdef DEBUG_PRINTF
         printf("\n++++++++++++  One of the recved pess :  ++++++++++++\n");
         for(int index = 2; index < nThisLLCFrameLength; index++)
         {
             printf("0x%02x ",pBuffer[index]);
         }
         printf("\n++++++++++++++++++++++++++++++++++++++++++++++++++++\n");
-        #endif
-
         printf("\ng_sSPPInstance->nMessageLength : %d\n",g_sSPPInstance->nMessageLength);
+        #endif
 
         if((pBuffer[1] & 0x80) == 0)
         {
+            //不是最后一片
+            #ifdef DEBUG_PRINTF
             printf("\n is waiting last fragment ... \n");
+            #endif
+
             pLLCInstance->bIsWaitingLastFragment = true;
             //组装一个完整的message，需要一直取 LLC 帧
         }
         else
         {
+            //是最后一片
+            #ifdef DEBUG_PRINTF
             printf("\nthis is the last fragment or this is a single message\n");
+            #endif
+
             pLLCInstance->bIsWaitingLastFragment = false;
             g_sSPPInstance->bIsMessageReady = true;
             //把一帧 LLC 帧解析成message向上传递
@@ -313,17 +361,31 @@ uint8_t LLCReadFrame(tLLCInstance* pLLCInstanceWithPRI)
     else
     {
         //上层的message结构不为空，还没有把消息读走，不能写入到，不对消息帧做处理
+        #ifdef DEBUG_PRINTF
         printf("\n^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^\n");
         printf("Message still in buffer!!!");
         printf("\n^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^*^\n");
+        #endif
+
         return 0;
     }
+    #ifdef DEBUG_PRINTF
     printf("\nCFREE(pBufferForFree)\n");
+    #endif
+
     CFREE(pBufferForFree);
     MACFrameWrite();
     return;
 }
 
+/**
+ * @function    把应用消息分片，并构造成 LLC 帧，按照分片顺序依次放到待发送链表中
+ * @parameter1  要发送的应用数据的首地址
+ * @parameter2  要发送的应用数据的字节数
+ * @parameter3  要发送的应用数据的优先级
+ * @parameter4  是否是应用数据，如果不是，则是连接控制命令
+ * @return
+*/
 uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMessagePriority,bool bIsData)
 {
     uint32_t nWriteByteCount = 0;
@@ -374,7 +436,10 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         }
 
         *(pSingleLLCFrame + 1) = 0x80;  //信息帧，N(S)和N(R)字段在发送的时候填充
+        #ifdef DEBUG_PRINTF
         printf("\n!!!!!!!!!   a pess of pSendMessageAddress   !!!!!!!!!!!!!!\n");
+        #endif
+
         if(bIsFirstFregment)
         {
             bIsFirstFregment = false;
@@ -382,7 +447,10 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             *(pSingleLLCFrame + 3) = g_sSPPInstance->nNextMessageHeader;
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-3; nSingleLLCFrameLength++)
             {
+                #ifdef DEBUG_PRINTF
                 printf("0x%02x ",*(pSendMessageAddress + nCopyPosition));
+                #endif
+                
                 *(pSingleLLCFrame + 4 + nSingleLLCFrameLength) = *(pSendMessageAddress + nCopyPosition++);
             }
             nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
@@ -391,17 +459,23 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         {
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-2; nSingleLLCFrameLength++)
             {
+                #ifdef DEBUG_PRINTF
                 printf("0x%02x ",*(pSendMessageAddress + nCopyPosition));
+                #endif
+
                 *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *(pSendMessageAddress + nCopyPosition++);
             }    
         }
+        
+        #ifdef DEBUG_PRINTF
         printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");     
         printf("\n!!!!!!!!!   this pess in pSingleLLCFrameis   !!!!!!!!!!!!!\n");
         for(int index = 0; index < nSingleLLCFrameLength + 3; index++)
         {
                 printf("0x%02x ",*(pSingleLLCFrame + index));
         }
-        printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");     
+        printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"); 
+        #endif    
 
         pLLCWriteContext->pFrameBuffer = pSingleLLCFrame;
         pLLCWriteContext->nFrameLength = *pSingleLLCFrame + 2;//MAC 帧有效载荷是一个LLC帧（从LLC头部开始算起）总长加上他的长度信息（一字节）与crc信息（一字节）

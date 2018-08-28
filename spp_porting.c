@@ -38,12 +38,9 @@ uint8_t CFREE(void* pFreeAddress)
 //定时器线程，每一毫秒执行一次软中断函数，这个中断函数是自己的多定时器管理函数，所以在设置定时器超时宏定义的时候，值的单位是 ms
 void* MultiTimer_thread(void *parameter)
 {
+    #ifdef DEBUG_PRINTF
     printf("\nthis is timer thread!\n");
-    // if(signal(SIGALRM,SYSTimeoutHandler) == SIG_ERR)
-    // {
-    //     printf("\nwhen set timeout handler the error occur!\n");
-    //     return ((void*)0);
-    // }
+    #endif
 
     int err,signo;
 
@@ -60,7 +57,10 @@ void* MultiTimer_thread(void *parameter)
         err = sigwait(&g_sigset_mask,&signo);
         if(err != 0)
         {
+            #ifdef DEBUG_PRINTF
             printf("\nsigwait error! can't open multitimer task!\n");
+            #endif
+
             return ;
         }
 
@@ -75,13 +75,18 @@ void* MultiTimer_thread(void *parameter)
 
 void* SendData_thread(void *parameter)
 {
+    #ifdef DEBUG_PRINTF
     printf("\nthis is send thread!\n");
+    #endif
 
     int err;
     sigset_t old_sig_mask;
     if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nset sig mask error!\n");
+        #endif
+
         return ;
     }
 
@@ -116,13 +121,18 @@ void* SendData_thread(void *parameter)
 
 void* RecvData_thread(void *parameter)
 {
+    #ifdef DEBUG_PRINTF
     printf("\nthis is recv thread!\n");
+    #endif
 
     int err;
     sigset_t old_sig_mask;
     if(err = pthread_sigmask(SIG_SETMASK,&g_sigset_mask,&old_sig_mask) != 0)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nset sig mask error!\n");
+        #endif
+
         return ;
     }
 
@@ -149,12 +159,14 @@ void* RecvData_thread(void *parameter)
         pLLCInstance = MACFrameRead();
         if(pLLCInstance != NULL)
         {
+            #ifdef DEBUG_PRINTF
             printf("\nRecv : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
             printf("\nRecv : g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
             printf("\nRecv : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
             printf("\nRecv : g_aLLCInstance[%d]->nReadLastAcknowledgedFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadLastAcknowledgedFrameId);
             printf("\nRecv : g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
-            
+            #endif
+
             LLCReadFrame(pLLCInstance);
         }
              
@@ -205,11 +217,13 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
         return 0;
     else
     {
+        #ifdef DEBUG_PRINTF
         printf("\n******** recv data as flow ***********\n");
         for(int index = 0;index < nReadBytes; index++)
             printf("0x%02x ",*(uint8_t*)(pBuffer+index));
         printf("\n\n**************************************\n");
         printf("\nCONNECT_STATU is : 0x%02x\n\n",g_sSPPInstance->nConnectStatus);
+        #endif
 
         return nReadBytes;
     }
@@ -217,11 +231,14 @@ uint8_t ReadBytes(uint8_t *pBuffer,uint8_t nReadLength)
 
 uint8_t SPI_SEND_BYTES(uint8_t* pData,uint8_t nLength)
 {
+    #ifdef DEBUG_PRINTF
     printf("\n-------- send bytes as flow ----------\n\n");
     for(int index = 0; index < nLength; index++)
         printf("0x%02x ",*(pData+index));
     printf("\n\n--------------------------------------\n");
     printf("\nCONNECT_STATU is : 0x%02x\n\n",g_sSPPInstance->nConnectStatus);
+    #endif
+    
     //send(g_client_sock,(void*)pData,nLength,0);
     sendto(g_client_sock,(void*)pData,nLength,0,(struct sockaddr*)&service_address,sizeof(service_address));
 }

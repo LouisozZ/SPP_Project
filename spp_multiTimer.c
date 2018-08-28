@@ -181,7 +181,9 @@ uint8_t CancelTimerTask(uint8_t nTimerID,uint8_t nCancelMode)
             }
             pEarliestTimer = pEarliestTimer->pNextTimer;
         }
+        #ifdef DEBUG_PRINTF
         printf("\nThere is no this timer task!\n");
+        #endif
         return 2;   //出错，超时检测链表中没有这个超时任务
     }
     else if(nCancelMode == CANCEL_MODE_AFTER_NEXT_TIMEOUT)

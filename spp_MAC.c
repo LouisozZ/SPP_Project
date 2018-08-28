@@ -6,6 +6,13 @@
 #define TIMER4_WINDOW_FULL_RESENT   TIMER_4
 #define WINDOW_FULL_RESENT_TIMEOUT  700
 
+
+#ifdef DEBUG_PRINTF
+/**
+ * @function    调试时候打印信息的辅助函数，确定当前的实体的优先级
+ * @parameter1  LLC层处理实体
+ * @return      当前实体的优先级
+*/
 int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
 {
     for(int index = 0; index < PRIORITY; index++)
@@ -15,23 +22,35 @@ int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
     }
     return -1;
 }
+#endif
 
-
-
+/**
+ * @function    定时器2的回调函数，最后一片的发送超时。如果发送的分片是最后一片，那么会设置这个超时任务，超时时间到达之前
+ *              如果没有收到最后一片的响应，则会重发最后一片。如果收到了就取消这个定时任务。
+ * @parameter
+ * @return
+*/
 static void Timer2_FinialResendTimeout(void *pParameter)
 {
+    #ifdef DEBUG_PRINTF
     printf("\ntimer2 timeout\n");
+    #endif
+
     for(int index = 0; index < PRIORITY; index++)
     {
         if(g_aLLCInstance[index]->nWriteNextToSendFrameId == g_aLLCInstance[index]->nWriteLastAckSentFrameId + 2)
         {
-            //if((g_sSPPInstance->nConnectStatus == CONNECT_STATU_CONNECTED) && (g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead == NULL))
-            if((g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead == NULL))
-            {
-                printf("\nThere is something wrong with protocol stack!\n");
-                //杀死进程！
-                return ;
-            }
+            //还有一片没有得到接收方确认
+            // if((g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead == NULL))
+            // {
+            //     //如果有未发送的分片，但是已发送链表为空，则出错
+            //     #ifdef DEBUG_PRINTF
+            //     printf("\nThere is something wrong with protocol stack!\n");
+            //     #endif
+            //     //杀死进程！
+            //     return ;
+            // }
+            // 因为取消了已发送链表，而用滑动窗口来替代其功能，所以注释掉了
 
             if(g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead->bIsLastFragment)
             {
@@ -45,6 +64,12 @@ static void Timer2_FinialResendTimeout(void *pParameter)
     return;
 }
 
+/**
+ * @function    应答超时。应答超时在连接建立之后就开始运行，只要有接收了的分片未响应给发送方，每当应答超时到来，
+ *              都会把所有已接收的分片都应答。
+ * @parameter
+ * @return
+*/
 void Timer3_ACKTimeout(void* pParameter)
 {
     //printf("\ntimer3 timeout\n");
@@ -61,10 +86,19 @@ void Timer3_ACKTimeout(void* pParameter)
     return;
 }
 
+/**
+ * @function    滑动窗口满了之后的超时回调函数。如果很不幸，发送的几片分片接收方都没有收到，那么接收方是不知道发送方
+ *              发送了数据的，这时候发送方的滑动窗口已经满了，不能再发送，程序就会一直阻塞在这里得不到释放，所以通过
+ *              这个超时任务来重发滑动窗口里的内容。一旦滑动窗口不是满的，这个任务就会被取消掉。
+ * @parameter   LLC实体，重发的是滑动窗口阻塞了的优先级实体
+ * @return
+*/
 void Timer4_WindowFullResent(void* pParameter)
 {
     tLLCInstance *pLLCInstance;
     pLLCInstance = (tLLCInstance*)pParameter;
+
+    //为重发做准备，更改指向下一个要发送的分片的位置
     if(pLLCInstance->bIsWriteWindowsFull)
         pLLCInstance->nWriteNextWindowFrameId = pLLCInstance->nWriteLastAckSentFrameId + 1;
 
@@ -223,6 +257,14 @@ uint8_t static_ResetLLC()
 
     return 0;
 }
+
+/**
+ * @function    把N(S),N(R)这样的三位数据转换成32位的ID数据
+ * @parameter1  对应的优先级实体
+ * @parameter2  N(S) or N(R) 的值
+ * @parameter3  是否是N(S)  
+ * @retrun      返回对应的32位ID 
+*/
 static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8_t n3bitValue,bool bIsNS)
 {
     CDebugAssert(pLLCInstance != NULL);
@@ -251,6 +293,10 @@ static uint32_t static_ConvertTo32BitIdentifier(tLLCInstance* pLLCInstance,uint8
 
    return n32bitValue;
 }
+
+/**
+ * @function    模运算，用于定位滑动窗口的元素
+*/
 static  uint32_t static_Modulo(uint32_t nValue, uint32_t nModulo )
 {
    CDebugAssert((nModulo >= 1) && (nModulo <= 4));
@@ -266,6 +312,9 @@ static  uint32_t static_Modulo(uint32_t nValue, uint32_t nModulo )
    return nValue & 3;
 }
 
+/**
+ * @function    检查对应的优先级实体是否读缓冲区满了，这里留了几十个字节的容错，因为是先将读取到的数据放到读缓冲区再判断
+*/
 bool CheckReadBufferFree(tLLCInstance* pLLCInstance)
 {
     if(pLLCInstance->nLLCReadReadPosition <= pLLCInstance->nLLCReadWritePosition)
@@ -301,17 +350,20 @@ bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
     nTheOtherSideWishToGetID = static_ConvertTo32BitIdentifier(pLLCInstance,(nLLCHeader) & 0x07,IS_NR_FIELD);
     if(!((nTheOtherSideWishToGetID > pLLCInstance->nWriteLastAckSentFrameId) && (nTheOtherSideWishToGetID <= pLLCInstance->nWriteNextToSendFrameId)))
     {
+        #ifdef DEBUG_PRINTF
         printf("\npLLCInstance->nWriteLastAckSentFrameId : 0x%08x\n",pLLCInstance->nWriteLastAckSentFrameId);
         printf("\nnTheOtherSideWishToGetID : 0x%08x\n",nTheOtherSideWishToGetID);
         printf("\npLLCInstance->nWriteNextToSendFrameId : 0x%08x\n",pLLCInstance->nWriteNextToSendFrameId);
+        #endif
+
         return false;
     }    
    
-    /* build a RR frame with the same "next to receive identifier" */
+    //用信息帧携带的 N(R) 字段来构造一个 RR 帧
     nLLCHeader &= 0x07;
     nLLCHeader |= 0xC0;
 
-    //根据帧头 nCtrlHeader 来写响应
+    //用这个构造出来的 RR 帧更新 ID
     if(!CtrlFrameAcknowledge(nLLCHeader,pLLCInstance))
     {
         return false;
@@ -319,10 +371,12 @@ bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
 
     if(nReceivedFrameId != pLLCInstance->nReadNextToReceivedFrameId)
     {
+        #ifdef DEBUG_PRINTF
         printf("\n^^^^^^^^^^^^^^^^  Reject  ^^^^^^^^^^^^^^^^^^^^^^^\n");
         printf("nReceivedFrameId : \n0x%08x\n",nReceivedFrameId);
         printf("\npLLCInstance[%d]->nReadNextToReceivedFrameId : \n0x%08x",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
         printf("\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
+        #endif
 
         pLLCInstance->nNextCtrlFrameToSend = READ_CTRL_FRAME_REJ;
     }
@@ -337,6 +391,10 @@ bool DealIDProblemForIFrame(tLLCInstance* pLLCInstance,uint8_t nLLCHeader)
     return true;
 }
 
+/**
+ * @function    MAC 帧读函数。通过 MAC 读状态机读取从硬件得到的字节流中的一帧 MAC 帧，然后解析出 LLC 帧，
+ *              如果是控制帧，不论是 LLC 控制帧还是连接控制帧，都直接响应，如果是数据帧，则往上丢给 LLC 层处理
+*/
 tLLCInstance* MACFrameRead()
 {
     tLLCInstance* pLLCInstance = NULL;
@@ -483,7 +541,10 @@ tLLCInstance* MACFrameRead()
     //做去 0 处理
     if((nLength = static_RemoveInsertedZero(g_sMACInstance->aMACReadBuffer,pDataRemovedZero,(nByteCount - 2))) == 0)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nbit error!\n");
+        #endif
+
         return NULL;
     }
     //校验 crc
@@ -495,10 +556,14 @@ tLLCInstance* MACFrameRead()
     nCRC = *(pDataRemovedZero+*pDataRemovedZero+1);
     if(nCRC != g_sMACInstance->nMACReadCRC)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nCRC error!\n");
+        #endif
+
         return NULL;
     }
-    #ifndef DEBUG_PRINTF
+
+    #ifdef DEBUG_PRINTF
     printf("\npDataRemovedZero : ");
     for(int index = 0; index < nLength; index++)
         printf("0x%02x ",*(pDataRemovedZero + index));
@@ -513,7 +578,7 @@ tLLCInstance* MACFrameRead()
     if(*pDataRemovedZero == 2)
     {
         //RR RNR REJ RSET
-        #ifndef DEBUG_PRINTF
+        #ifdef DEBUG_PRINTF
         printf("\nctrl frame! 0x%02x\n",(nCtrlHeader & 0xf8));
         #endif
 
@@ -527,7 +592,10 @@ tLLCInstance* MACFrameRead()
 
             if(!CtrlFrameAcknowledge(nCtrlHeader,pLLCInstance))
             {
+                #ifdef DEBUG_PRINTF
                 printf("\nAcknowledge ctrl frame false!\n");
+                #endif
+
                 return NULL;
             }
             return pLLCInstance;
@@ -537,14 +605,18 @@ tLLCInstance* MACFrameRead()
             if(*(pDataRemovedZero + 2) > g_sSPPInstance->nWindowSize)
             {
                 g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_RST;
-                //设置 RESET 的响应超时，还可用的定时器，timer4 和 timer5
+                //设置 RESET 的响应超时，还可用的定时器，timer5
                 //SetTimer(timerid,timeroutvalue,is,nextctrlframeisrst,null);
             }
             else
             {
-                g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_UA;
-                LOCK_WRITE();
+                #ifdef DEBUG_PRINTF
                 printf("\nrecv reset and the window size is ok\n");
+                #endif
+
+                g_aLLCInstance[0]->nNextCtrlFrameToSend = LLC_FRAME_UA;
+
+                LOCK_WRITE();
                 static_ResetLLC();
                 UNLOCK_WRITE();
             }
@@ -555,9 +627,12 @@ tLLCInstance* MACFrameRead()
     }//UA帧 只有UA帧和RESET帧没有优先级信息，所以只有UA帧可能是一字节长
     else if(*pDataRemovedZero == 1)
     {        
+        #ifdef DEBUG_PRINTF
+        printf("\nrecv ua\n");
+        #endif
+
         SetTimer(TIMER3_ACK_TIMEOUT,SEND_ACK_TIMEOUT,false,Timer3_ACKTimeout,NULL);
         LOCK_WRITE();
-        printf("\nrecv ua\n");
         static_ResetLLC();
         UNLOCK_WRITE();
     }    
@@ -573,13 +648,22 @@ tLLCInstance* MACFrameRead()
             //===========================================
             //      更新相关的 ID 数据，及时响应发送方
             //===========================================
+            #ifdef DEBUG_PRINTF
             printf("\nBefor deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
+            #endif
+
             if(!DealIDProblemForIFrame(pLLCInstance,nCtrlHeader))
             {
+                #ifdef DEBUG_PRINTF
                 printf("\nDealIDProblemForIFrame() error !\n");
+                #endif
+
                 return NULL;
             }
+
+            #ifdef DEBUG_PRINTF
             printf("\nAfter deal ID , g_aLLCInstance[%d]->nReadNextToReceivedFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nReadNextToReceivedFrameId);
+            #endif
             //===========================================   
                 
             //g_sMACInstance->pMACReadCompletedCallback = pLLCInstance->pReadHandler;
@@ -603,7 +687,7 @@ tLLCInstance* MACFrameRead()
             }
             else if((nPackageHeader & 0x40) == 0x40)
             {
-                //是应用数据帧
+                //是应用数据帧,往上递交，放到读缓冲区
                 if(pLLCInstance->bIsFirstFregment)
                 {
                     //第一个分片，有 Message Header 字段
@@ -640,6 +724,7 @@ tLLCInstance* MACFrameRead()
                 }
                 else
                 {
+                    //不是第一个分片，没有 message header ，直接把 LLC 帧向上递交
                     for(int index = 0; index <= *pDataRemovedZero; index++)
                     {
                         if(pLLCInstance->nLLCReadWritePosition >= READ_BUFFER_SIZE)
@@ -663,21 +748,33 @@ tLLCInstance* MACFrameRead()
         }//未知帧类型
         else 
         {
+            #ifdef DEBUG_PRINTF
             printf("\nUnknown frame type!\n");
+            #endif
         }
     }
     //产生了LLC ctrl 帧，所以调用一次写函数，把命令（响应）发送出去
+    #ifdef DEBUG_PRINTF
     printf("\nCFREE(pDataRemovedZero)\n");
+    #endif
+
     CFREE(pDataRemovedZero);
     MACFrameWrite();
     return pLLCInstance;
 }
 
+/**
+ * @function    MAC 帧写函数。把 LLC 帧链表中的数据，即一帧 LLC 帧，写到滑动窗口中
+*/
 uint8_t MACFrameWrite()
 {
+    //如果此时是读挂起，则返回，等待上一帧写结束
     if(g_sMACInstance->bIsWriteFramePending)
     {
+        #ifdef DEBUG_PRINTF
         printf("\nThe wirte mechine is pending!\n");
+        #endif
+
         return 0;
     }
 
@@ -690,8 +787,8 @@ uint8_t MACFrameWrite()
     tLLCWriteContext* pSendLLCFrame = NULL;
     uint8_t nCRC = 0;
     int nPriority;
-    //the connect ctrl frame belong to priority 0, so if there is any connect ctrl frame, is must be found firstly
-    
+    //自定义了连接控制帧的优先级是 0 ，所以如果有连接控制帧，一定是最高优先级，最早被处理
+
     g_sMACInstance->bIsWriteFramePending = true;
 
     //取得优先级最高的LLC实体，把它的写链表中最早的数据写到滑动窗口上
@@ -750,7 +847,7 @@ uint8_t MACFrameWrite()
         }
         *(pSendLLCFrame->pFrameBuffer + pSendLLCFrame->nFrameLength - 1) = nCRC;
 
-        #ifndef DEBUG_PRINTF
+        #ifdef DEBUG_PRINTF
         printf("\npDataHaventInsertZero : ");
         for(int index = 0; index < pSendLLCFrame->nFrameLength; index++)
             printf("0x%02x ",*(pSendLLCFrame->pFrameBuffer + index));
@@ -781,7 +878,7 @@ uint8_t MACFrameWrite()
         if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
             pLLCInstance->bIsWriteWindowsFull = true;
         else
-            pLLCInstance->bIsWriteWindowsFull = false;//nWriteNextWindowFrameId
+            pLLCInstance->bIsWriteWindowsFull = false;
 
         SPIWriteBytes(pLLCInstance,pSingleMACFrame->pFrameBuffer,pSingleMACFrame->nFrameLength,0);
         if(pSendLLCFrame->bIsLastFragment)//最后一片，设置重发超时
@@ -839,7 +936,7 @@ uint8_t MACFrameWrite()
                 nCRC ^= *(pCtrlLLCHeader + index);
             *(pCtrlLLCHeader + 3) = nCRC;
 
-            #ifndef DEBUG_PRINTF
+            #ifdef DEBUG_PRINTF
             printf("\npDataHaventInsertZero : ");
             for(int index = 0; index < 4; index++)
                 printf("0x%02x ",*(pCtrlLLCHeader + index));
@@ -864,7 +961,7 @@ uint8_t MACFrameWrite()
             nCRC ^= *(pCtrlLLCHeader + 1);
             *(pCtrlLLCHeader + 2) = nCRC;
 
-            #ifndef DEBUG_PRINTF
+            #ifdef DEBUG_PRINTF
             printf("\npDataHaventInsertZero : ");
             for(int index = 0; index < 3; index++)
                 printf("0x%02x ",*(pCtrlLLCHeader + index));
@@ -876,6 +973,7 @@ uint8_t MACFrameWrite()
             CFREE(pCtrlLLCHeader);
         }
 
+        //添加 MAC 帧的头和尾
         *(pCtrlFrameData) = HEADER_SOF;
         *(pCtrlFrameData + nInsertedZeroFrameLength + 1) = TRAILER_EOF;
         nCtrlFrameLength = nInsertedZeroFrameLength + 2;
@@ -916,13 +1014,13 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         //则表示这个ID越界了，不对这个控制帧做响应，并且记录这种情况连续出现的次数，如果连续出现多次，
         //则认为协议栈的ID管理已经崩溃，无法再保证消息的可靠传输，保持各个缓冲区的数据不变，重置序号，
         //发送端把滑动窗口中的帧全重发。（接收端做重复对比？）
-#ifndef DEBUG_PRINTF
+        #ifdef DEBUG_PRINTF
         printf("\nID error!\n");
         printf("\nnWriteLastACKId : 0x%08x\n",nWriteLastACKId);
         printf("\nnWriteNextWindowId : 0x%08x\n",nWriteNextWindowId);
         printf("\nnReceivedId : 0x%08x\n",nOtherWantToRecvNextId);
+        #endif
 
-#endif
         return false;
     }
     
@@ -931,6 +1029,8 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
     {
         nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;        
         pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
+        
+        #ifdef DEBUG_PRINTF
         printf("\nRR : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         //##加锁
@@ -944,6 +1044,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         // }
         //##解锁
         printf("\n-------------->RR : update LastACK\t\tN(R) : 0x%08x\n",nOtherWantToRecvNextId);
+        #endif
         
     }//REJ帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_REJ)
@@ -963,12 +1064,13 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         // }
         //##解锁
         pLLCInstance->nWriteNextWindowFrameId = nOtherWantToRecvNextId;
+
+        #ifdef DEBUG_PRINTF
         printf("\nREJ : g_aLLCInstance[%d]->nWriteNextToSendFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextToSendFrameId);
         printf("\nREJ : g_aLLCInstance[%d]->nWriteNextWindowFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteNextWindowFrameId);
         printf("\nREJ : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
-
         printf("\n-------------->REJ : update NextWindowToSend\t\tN(R) : 0x%02x\n",nOtherWantToRecvNextId);
-        
+        #endif
     }//RNR帧
     else if((nCtrlFrame & LLC_S_FRAME_MASK) == READ_CTRL_FRAME_RNR)
     {
@@ -977,6 +1079,8 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         nAckedFrameNum = nOtherWantToRecvNextId - 1 - pLLCInstance->nWriteLastAckSentFrameId;
         
         pLLCInstance->nWriteLastAckSentFrameId = nOtherWantToRecvNextId - 1;
+
+        #ifdef DEBUG_PRINTF
         printf("\nRNR : g_aLLCInstance[%d]->nWriteLastAckSentFrameId : 0x%08x\n",GetPriorityBypLLCInstance(pLLCInstance),pLLCInstance->nWriteLastAckSentFrameId);
 
         //##加锁
@@ -990,7 +1094,7 @@ bool CtrlFrameAcknowledge(uint8_t nCtrlFrame, tLLCInstance *pLLCInstance)
         // }
         //##解锁
         printf("\n-------------->RNR : pLLCInstance->bIsWriteOtherSideReady = %d\t\tN(R) : 0x%02x\n",pLLCInstance->bIsWriteOtherSideReady,nOtherWantToRecvNextId);
-        
+        #endif
     }
     if(pLLCInstance->nWriteNextToSendFrameId - pLLCInstance->nWriteLastAckSentFrameId - 1 >= pLLCInstance->nWindowSize)
         pLLCInstance->bIsWriteWindowsFull = true;

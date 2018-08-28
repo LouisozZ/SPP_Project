@@ -1,6 +1,9 @@
 #include "spp_global.h"
 
-
+/**
+ * @function    请求建立连接超时处理函数。如果发送请求建立连接之后对方在超时时间内无响应，重发建立连接请求
+ *              并记录请求次数，如果次数得到一定值，则向上报告建立连接失败，对方无响应
+*/
 static void Timer0_RequireConnectTimeout(void* pParameter)
 {
     printf("\nTimer0_RequireConnectTimeout\n");
@@ -11,6 +14,9 @@ static void Timer0_RequireConnectTimeout(void* pParameter)
     }
 }
 
+/**
+ * @function    请求断连接超时处理函数。
+*/
 static void Timer1_RequireDisConnectTimeout(void* pParameter)
 {
     printf("\nTimer1_RequireDisConnectTimeout\n");
@@ -21,6 +27,9 @@ static void Timer1_RequireDisConnectTimeout(void* pParameter)
     }
 }
 
+/**
+ * @function    请求重置连接超时处理函数。
+*/
 static void Timer1_RequireResetConnectTimeout(void* pParameter)
 {
     if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_RESET_CONFIRM)
@@ -29,6 +38,7 @@ static void Timer1_RequireResetConnectTimeout(void* pParameter)
         ResetConnect();
     }
 }
+
 /**
  * @function    MPU向MCU发起建立连接请求
  * @description 建立连接的过程是三次握手，通过三次握手，双方都能知道双向数据传输是否联通
@@ -40,10 +50,14 @@ int ConnectToMCU()
 {
     if(g_nReconnectTimes >= 3)
     {
+        #ifdef DEBUG_PRINTF
         printf("\n\nConnect Timeout!\n\n");
+        #endif
+
         return -1;
     }
 
+    //更新 ID ，使得发送的是同一帧请求帧，而不是不断增加新的帧在滑动窗口中
     if(g_aLLCInstance[0]->nWriteNextWindowFrameId != (g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1))
     {
         g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
@@ -52,7 +66,10 @@ int ConnectToMCU()
     else
     {
         //CDebugAssert(g_sSPPInstance->nConnectStatus == CONNECT_STATU_DISCONNECTED);
+        #ifdef DEBUG_PRINTF
         printf("\nConnecting to the other side ...\n");
+        #endif
+
         g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_CONNECT;
         LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
 
@@ -72,6 +89,8 @@ int ConnectToMCU()
 int Disconnect()
 {
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_DISCONNECT;
+
+    //更新 ID ，使得发送的是同一帧请求帧，而不是不断增加新的帧在滑动窗口中
     g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_DISCONNECT_CONFIRM;
@@ -88,6 +107,8 @@ int Disconnect()
 int ResetConnect()
 {
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_RESET;
+
+    //更新 ID ，使得发送的是同一帧请求帧，而不是不断增加新的帧在滑动窗口中
     g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_RESET_CONFIRM;
@@ -103,6 +124,7 @@ int ResetConnect()
 */
 int SendMessage(void* pSendMessage)
 {
+    //这个函数根据需要修改，只要保证传给 LLCFrameWrite() 的参数是正确的即可
     uint32_t nMessageLength;
     uint8_t nMessagePriority;
     uint32_t nSentBytes;
@@ -120,7 +142,9 @@ int SendMessage(void* pSendMessage)
 
     g_sSPPInstance->nNextMessageHeader = CONNECT_SEND_RECV_MESSAGE;
 
+    #ifdef DEBUG_PRINTF
     printf("\nnMessageLength : %d\nnMessagePriority : %d\n",nMessageLength,nMessagePriority);
+    #endif
 
     nSentBytes = LLCFrameWrite(pDataToSend,nMessageLength,nMessagePriority,true);
     if(nSentBytes == nMessageLength)
@@ -156,7 +180,7 @@ int RecvMessage(void** pDataAddress,uint32_t* pMessageLength)
     *pMessageLength = g_sSPPInstance->nMessageLength;
     *pDataAddress = g_sSPPInstance->pMessageBuffer;
 
-    #ifndef DEBUG_PRINTF
+    #ifdef DEBUG_PRINTF
     printf("\ng_sSPPInstance->nMessageLength : %d\n",g_sSPPInstance->nMessageLength);
     printf("\nThe recved message is :\n");
     for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
