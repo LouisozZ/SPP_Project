@@ -3,6 +3,9 @@
 #define IS_NS_FIELD true
 #define IS_NR_FIELD false
 
+#define TIMER4_WINDOW_FULL_RESENT   TIMER_4
+#define WINDOW_FULL_RESENT_TIMEOUT  700
+
 int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
 {
     for(int index = 0; index < PRIORITY; index++)
@@ -12,6 +15,8 @@ int GetPriorityBypLLCInstance(tLLCInstance* pLLCInstance)
     }
     return -1;
 }
+
+
 
 static void Timer2_FinialResendTimeout(void *pParameter)
 {
@@ -45,7 +50,7 @@ void Timer3_ACKTimeout(void* pParameter)
     //printf("\ntimer3 timeout\n");
     for(int index = 0; index < PRIORITY; index++)
     {
-        if((g_aLLCInstance[index]->nReadNextToReceivedFrameId > (g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)) || (g_aLLCInstance[index]->bIsWaitingLastFragment == true))
+        if((g_aLLCInstance[index]->nReadNextToReceivedFrameId > (g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)))
         {
             g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
             MACFrameWrite();
@@ -55,6 +60,21 @@ void Timer3_ACKTimeout(void* pParameter)
     }
     return;
 }
+
+void Timer4_WindowFullResent(void* pParameter)
+{
+    tLLCInstance *pLLCInstance;
+    pLLCInstance = (tLLCInstance*)pParameter;
+    if(pLLCInstance->bIsWriteWindowsFull)
+        pLLCInstance->nWriteNextWindowFrameId = pLLCInstance->nWriteLastAckSentFrameId + 1;
+
+    for(uint32_t index = pLLCInstance->nWriteNextWindowFrameId; index < pLLCInstance->nWriteNextToSendFrameId;index++)
+    {
+        SPIWriteBytes(pLLCInstance,NULL,0,false);
+    }
+    return;
+}
+
 uint8_t InitMACInstance()
 {
     g_sMACInstance = (tMACInstance*)CMALLOC(sizeof(tMACInstance));
@@ -697,11 +717,16 @@ uint8_t MACFrameWrite()
         {
             pLLCInstance->bIsWriteWindowsFull = true;
             //printf("\ng_sSPPInstance[%d] : The slide window is full!\n",GetPriorityBypLLCInstance(pLLCInstance));
+            SetTimer(TIMER4_WINDOW_FULL_RESENT,WINDOW_FULL_RESENT_TIMEOUT,true,Timer4_WindowFullResent,pLLCInstance);
             g_sMACInstance->bIsWriteFramePending = false;
             return 0;
         }    
         else
+        {
             pLLCInstance->bIsWriteWindowsFull = false;
+            CancelTimerTask(TIMER4_WINDOW_FULL_RESENT,CANCEL_MODE_IMMEDIATELY);
+        }
+            
     }
 
     if(pLLCInstance->nNextCtrlFrameToSend == READ_CTRL_FRAME_NONE)
