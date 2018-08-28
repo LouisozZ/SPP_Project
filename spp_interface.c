@@ -72,6 +72,7 @@ int ConnectToMCU()
 int Disconnect()
 {
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_DISCONNECT;
+    g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_DISCONNECT_CONFIRM;
     SetTimer(TIMER_0_CONNECT,RESENT_DIS_RESET_CONNECT_TIMEOUT,true,Timer1_RequireDisConnectTimeout,NULL);
@@ -87,6 +88,7 @@ int Disconnect()
 int ResetConnect()
 {
     g_sSPPInstance->nNextMessageHeader = CONNECT_REQUIRE_RESET;
+    g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
     LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
     g_sSPPInstance->nConnectStatus = CONNECT_STATU_WAITING_RESET_CONFIRM;
     SetTimer(TIMER_0_CONNECT,RESENT_DIS_RESET_CONNECT_TIMEOUT,true,Timer1_RequireResetConnectTimeout,NULL);
@@ -159,7 +161,7 @@ int RecvMessage(void** pDataAddress,uint32_t* pMessageLength)
     printf("\nThe recved message is :\n");
     for(int index = 0; index < g_sSPPInstance->nMessageLength; index++)
     {
-        printf("0x%02x ",index,*(g_sSPPInstance->pMessageBuffer + index));
+        printf("0x%02x ",*(g_sSPPInstance->pMessageBuffer + index));
     }
     printf("\n\n");
     #endif

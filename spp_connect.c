@@ -4,6 +4,7 @@ static void Timer1_FinialComfirmTimeout(void* pParameter)
 {
     if(g_sSPPInstance->nConnectStatus == CONNECT_STATU_WAITING_CONFIRM)
     {
+        g_aLLCInstance[0]->nWriteNextWindowFrameId = g_aLLCInstance[0]->nWriteLastAckSentFrameId + 1;
         g_sSPPInstance->nNextMessageHeader = CONNECT_CONFIRM_CONNECT;
         LLCFrameWrite(NULL,0,0,CONNECT_FRAME);
         SetTimer(TIMER_1_CONNECT_CONFIRM,RESENT_CONFIRM_CONNECT_TIMEOUT,true,Timer1_FinialComfirmTimeout,NULL);
