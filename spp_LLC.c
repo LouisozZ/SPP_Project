@@ -318,6 +318,7 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
 {
     uint32_t nWriteByteCount = 0;
     uint8_t nSingleLLCFrameLength = 0;
+    uint8_t nCopyPosition = 0;
     uint32_t nRemainingPayload = nMessageLength;
     uint8_t* pSingleLLCFrame = NULL;
     uint8_t* pSendMessageAddress = pSendMessage;
@@ -371,8 +372,8 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
             *(pSingleLLCFrame + 3) = g_sSPPInstance->nNextMessageHeader;
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-3; nSingleLLCFrameLength++)
             {
-                printf("0x%02x ",*pSendMessageAddress);
-                *(pSingleLLCFrame + 4 + nSingleLLCFrameLength) = *pSendMessageAddress++;
+                printf("0x%02x ",*(pSendMessageAddress + nCopyPosition));
+                *(pSingleLLCFrame + 4 + nSingleLLCFrameLength) = *(pSendMessageAddress + nCopyPosition++);
             }
             nSingleLLCFrameLength++;    //加上没有记录的 message header 的长度
         }
@@ -380,8 +381,8 @@ uint32_t LLCFrameWrite(uint8_t* pSendMessage,uint32_t nMessageLength,uint8_t nMe
         {
             for(nSingleLLCFrameLength = 0; nSingleLLCFrameLength <  *pSingleLLCFrame-2; nSingleLLCFrameLength++)
             {
-                printf("0x%02x ",*pSendMessageAddress);
-                *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *pSendMessageAddress++;
+                printf("0x%02x ",*(pSendMessageAddress + nCopyPosition));
+                *(pSingleLLCFrame + 3 + nSingleLLCFrameLength) = *(pSendMessageAddress + nCopyPosition++);
             }    
         }
         printf("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");     
