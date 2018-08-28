@@ -20,7 +20,8 @@ static void Timer2_FinialResendTimeout(void *pParameter)
     {
         if(g_aLLCInstance[index]->nWriteNextToSendFrameId == g_aLLCInstance[index]->nWriteLastAckSentFrameId + 2)
         {
-            if(g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead == NULL)
+            //if((g_sSPPInstance->nConnectStatus == CONNECT_STATU_CONNECTED) && (g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead == NULL))
+            if((g_aLLCInstance[index]->pLLCFrameWriteCompletedListHead == NULL))
             {
                 printf("\nThere is something wrong with protocol stack!\n");
                 //杀死进程！
@@ -44,7 +45,7 @@ void Timer3_ACKTimeout(void* pParameter)
     //printf("\ntimer3 timeout\n");
     for(int index = 0; index < PRIORITY; index++)
     {
-        if(g_aLLCInstance[index]->nReadNextToReceivedFrameId > (g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1))
+        if((g_aLLCInstance[index]->nReadNextToReceivedFrameId > (g_aLLCInstance[index]->nReadLastAcknowledgedFrameId + 1)) || (g_aLLCInstance[index]->bIsWaitingLastFragment == true))
         {
             g_aLLCInstance[index]->nNextCtrlFrameToSend = READ_CTRL_FRAME_ACK;
             MACFrameWrite();
