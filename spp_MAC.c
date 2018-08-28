@@ -593,9 +593,11 @@ tLLCInstance* MACFrameRead()
                     {  
                         //nLength 是数据帧的长度，从 LLC Header 到 有效载荷最后一个字节，这个长度比应用数据有效载荷多了两个字节， LLC Header 和 Package Header
                         nLength = *pDataRemovedZero;
+                        //去掉一个字节的 message header 长度
                         *pDataRemovedZero = *pDataRemovedZero - 1;
                         for(int index = 0; index <= nLength; index++)
                         {
+                            //在重组应用数据的时候，忽略掉 message header
                             if(index == 3)
                                 continue;
                             if(pLLCInstance->nLLCReadWritePosition >= READ_BUFFER_SIZE)

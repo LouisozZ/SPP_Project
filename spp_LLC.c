@@ -204,10 +204,10 @@ static uint8_t* static_ReadALLCFrameFromeReadBuffer(tLLCInstance* pLLCInstanceWi
     uint8_t* pBuffer_return;
     uint8_t nThisLLCFrameLength = 0;
     nThisLLCFrameLength = nFrameLength;
-    pBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*nThisLLCFrameLength);
+    pBuffer = (uint8_t*)CMALLOC(sizeof(uint8_t)*nThisLLCFrameLength + 1);
     pBuffer_return = pBuffer;
 
-    for(int index = 0; index < nThisLLCFrameLength; index++)
+    for(int index = 0; index <= nThisLLCFrameLength; index++)
     {
         *pBuffer++ = pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition];
         pLLCInstance->aLLCReadBuffer[pLLCInstance->nLLCReadReadPosition++] = 0;
